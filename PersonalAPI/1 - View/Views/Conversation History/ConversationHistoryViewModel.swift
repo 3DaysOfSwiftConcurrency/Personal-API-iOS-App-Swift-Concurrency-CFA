@@ -10,7 +10,7 @@ import Observation
     self.conversationsFeature = conversationsFeature
   }
   var conversations: [Conversation] { conversationsFeature.conversations }
-  var isBusy: Bool { conversationsFeature.isBusy }
+  var isConversationOperationInProgress: Bool { conversationsFeature.isConversationOperationInProgress }
   func load() async {
     do {
       try await conversationsFeature.load()

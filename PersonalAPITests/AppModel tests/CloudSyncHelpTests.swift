@@ -38,8 +38,8 @@ import XCTest
       CloudSyncEvent(imported: false, succeeded: false, issue: issue))
     await manager.backup(force: true)
     XCTAssertEqual(manager.syncIssue, issue)
-    XCTAssertTrue(manager.syncStatus.contains("attention"))
-    XCTAssertNil(manager.error)
+    XCTAssertEqual(manager.syncStatus, .needsAttention)
+    XCTAssertNil(manager.failure)
   }
 
   func testAccountAvailableDoesNotClaimSuccessfulSync() async {
@@ -49,7 +49,7 @@ import XCTest
       CloudSyncEvent(imported: false, succeeded: false, issue: issue))
     await manager.checkSyncAvailability()
     XCTAssertEqual(manager.syncIssue, issue)
-    XCTAssertTrue(manager.accountStatus?.contains("does not confirm") == true)
+    XCTAssertEqual(manager.accountStatus, .available)
     await manager.receivedCloudEvent(CloudSyncEvent(imported: false, succeeded: true, issue: nil))
     XCTAssertNil(manager.syncIssue)
   }

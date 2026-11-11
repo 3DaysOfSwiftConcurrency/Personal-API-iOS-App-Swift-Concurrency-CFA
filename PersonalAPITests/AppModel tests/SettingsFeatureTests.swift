@@ -30,7 +30,7 @@ import XCTest
     try await graph.app.momentsFeature.recordMoment(text: "Entry", happenedAt: nil)
     await graph.app.momentsFeature.enrichPendingMoments()
     try await graph.app.settingsFeature.regenerateMetadata()
-    XCTAssertNil(graph.app.settingsFeature.enrichmentError)
+    XCTAssertNil(graph.app.settingsFeature.enrichmentFailure)
     XCTAssertEqual(graph.app.momentsFeature.moments.first?.processingState, "complete")
     await graph.repository.setFailure(true)
     do {

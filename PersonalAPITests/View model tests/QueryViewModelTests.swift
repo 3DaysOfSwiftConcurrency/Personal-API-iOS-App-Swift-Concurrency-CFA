@@ -182,6 +182,6 @@ extension QueryViewModelTests {
     await fulfillment(of: [finished], timeout: 2)
     XCTAssertEqual(vm.turns.first?.question, "Question")
     XCTAssertNil(vm.turns.first?.result)
-    XCTAssertFalse(vm.isBusy)
+    XCTAssertFalse(vm.isConversationOperationInProgress)
   }
 }

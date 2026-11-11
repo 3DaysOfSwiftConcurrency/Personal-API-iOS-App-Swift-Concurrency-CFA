@@ -19,8 +19,16 @@ import Observation
   }
   var moments: [MomentSnapshot] { momentsFeature.moments }
   var canSave: Bool { !isSaving && momentsFeature.canRecord(text) }
-  var loadError: String? { momentsFeature.loadError }
-  var enrichmentError: String? { momentsFeature.enrichmentError }
+  var loadError: String? { momentsFeature.loadFailure?.localizedDescription }
+  var enrichmentError: String? {
+    guard let failure = momentsFeature.enrichmentFailure else { return nil }
+    switch failure {
+    case .metadata(let error):
+      return "Your original text is saved. Metadata needs a retry: \(error.localizedDescription)"
+    case .searchIndex(let error):
+      return "Your original text is saved. Search indexing needs a retry: \(error.localizedDescription)"
+    }
+  }
   var isLoading: Bool { momentsFeature.isLoading }
   func load() async { await momentsFeature.loadIfRequired() }
   func retry() async { await momentsFeature.refresh() }

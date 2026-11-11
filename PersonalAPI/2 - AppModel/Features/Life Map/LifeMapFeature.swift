@@ -8,7 +8,7 @@ import Observation
   private(set) var attemptedCount = 0
   private(set) var failedCount = 0
   private(set) var isReading = false
-  private(set) var issue: String?
+  private(set) var failures: [Error] = []
   private let repository: any PersonalDataRepository
   private let extractor: any LifeMapExtracting
   private var refreshTask: Task<Void, Never>?
@@ -33,10 +33,10 @@ import Observation
   private func performRefresh() async {
     isReading = true
     defer { isReading = false }
-    issue = nil
+    failures = []
     failedCount = 0
     attemptedCount = 0
-    var failures = Set<String>()
+    var failureDescriptions = Set<String>()
     do {
       let entries = try await repository.loadMoments()
       entryCount = entries.count
@@ -67,13 +67,14 @@ import Observation
           publish(current)
         } catch is CancellationError { throw CancellationError() } catch {
           failedCount += 1
-          failures.insert(error.localizedDescription)
-          issue = failures.sorted().joined(separator: "\n\n")
+          if failureDescriptions.insert(error.localizedDescription).inserted {
+            failures.append(error)
+          }
         }
       }
       let current = try await repository.loadMoments()
       publish(current)
-    } catch is CancellationError {} catch { issue = error.localizedDescription }
+    } catch is CancellationError {} catch { failures = [error] }
   }
   private func publish(_ entries: [MomentSnapshot]) {
     entryCount = entries.count

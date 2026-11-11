@@ -22,10 +22,10 @@ struct ConversationHistoryView: View {
                 Text(chat.updatedAt, style: .date).font(.caption).foregroundStyle(
                   theme.palette.secondary)
               }
-            }.disabled(viewModel.isBusy)
+            }.disabled(viewModel.isConversationOperationInProgress)
               .swipeActions {
                 Button("Delete", role: .destructive) { viewModel.pendingDeletion = chat.id }
-                  .disabled(viewModel.isBusy)
+                  .disabled(viewModel.isConversationOperationInProgress)
               }
           }
         }

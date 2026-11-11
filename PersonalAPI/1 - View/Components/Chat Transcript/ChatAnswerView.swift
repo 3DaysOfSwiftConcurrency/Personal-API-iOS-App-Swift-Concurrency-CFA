@@ -5,7 +5,7 @@ struct ChatAnswerView: View {
   let answer: String
   let failureDetails: String?
   let isLatest: Bool
-  let isBusy: Bool
+  let isConversationOperationInProgress: Bool
   let retry: () -> Void
   let logMoment: () -> Void
   let markUseful: () -> Void
@@ -51,8 +51,8 @@ struct ChatAnswerView: View {
             .frame(minHeight: 40)
         }
         .buttonStyle(.plain)
-        .opacity(isBusy ? 0.4 : 1)
-        .disabled(isBusy)
+        .opacity(isConversationOperationInProgress ? 0.4 : 1)
+        .disabled(isConversationOperationInProgress)
         Button {
           logMoment()
         } label: {
@@ -61,8 +61,8 @@ struct ChatAnswerView: View {
             .frame(minHeight: 40)
         }
         .buttonStyle(.plain)
-        .opacity(isBusy ? 0.4 : 1)
-        .disabled(isBusy)
+        .opacity(isConversationOperationInProgress ? 0.4 : 1)
+        .disabled(isConversationOperationInProgress)
         if turn.result?.needsMoreMemories == true {
           Text("The more you log, the more useful your Personal API can become.")
             .font(.caption).foregroundStyle(theme.palette.secondary)
@@ -76,7 +76,8 @@ struct ChatAnswerView: View {
           Button("Not helpful", systemImage: "hand.thumbsdown") {
             showFeedback()
           }
-        }.font(.caption).buttonStyle(PersonalAPIButtonStyle(appearance: .bordered)).disabled(isBusy)
+        }.font(.caption).buttonStyle(PersonalAPIButtonStyle(appearance: .bordered))
+          .disabled(isConversationOperationInProgress)
         if turn.feedback != nil {
           Text("Feedback saved for this answer.").font(.caption)
             .foregroundStyle(theme.palette.secondary)

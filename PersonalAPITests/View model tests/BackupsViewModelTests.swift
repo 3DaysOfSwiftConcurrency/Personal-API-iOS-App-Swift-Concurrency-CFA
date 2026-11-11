@@ -20,7 +20,7 @@ import XCTest
     await viewModel.restore()
     let restores = await repository.restores
     XCTAssertEqual(restores, 1)
-    XCTAssertEqual(viewModel.status, feature.status)
+    XCTAssertEqual(viewModel.status, "Restored. A copy of the previous data is saved on this device.")
   }
 
   func testImportFailureIsVisible() {

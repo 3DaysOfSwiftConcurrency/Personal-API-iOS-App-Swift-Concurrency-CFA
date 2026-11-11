@@ -30,7 +30,7 @@ struct QueryView: View {
                         },
                         set: { viewModel.question = $0 }),
                     isEditing: turn == nil ? $viewModel.isQuestionFocused : .constant(false),
-                    isEnabled: turn == nil && !viewModel.isBusy,
+                    isEnabled: turn == nil && !viewModel.isConversationOperationInProgress,
                     textColor: UIColor(theme.palette.primary),
                     placeholderColor: UIColor(theme.palette.secondary),
                     surfaceColor: UIColor(theme.palette.surface),
@@ -47,13 +47,13 @@ struct QueryView: View {
                       ChatAnswerView(
                         turn: turn, answer: viewModel.answer(for: turn),
                         failureDetails: viewModel.failureDetails(for: turn),
-                        isLatest: turn.id == viewModel.turns.last?.id, isBusy: viewModel.isBusy,
+                        isLatest: turn.id == viewModel.turns.last?.id, isConversationOperationInProgress: viewModel.isConversationOperationInProgress,
                         retry: { viewModel.answerAgain() },
                         logMoment: viewModel.showMomentEntry,
                         markUseful: { viewModel.markUseful(turn.id) },
                         showFeedback: { viewModel.showFeedback(turn) })
                     }
-                  } else if !viewModel.isBusy {
+                  } else if !viewModel.isConversationOperationInProgress {
                     Button {
                       viewModel.submitQuestion()
                     } label: {
@@ -66,7 +66,7 @@ struct QueryView: View {
                 }
                 .id(index)
               }
-              if viewModel.isBusy {
+              if viewModel.isConversationOperationInProgress {
                 Button("Stop", systemImage: "stop.circle") { viewModel.cancelSearch() }
               }
               if let error = viewModel.error {
@@ -111,7 +111,7 @@ struct QueryView: View {
           } label: {
             Image(systemName: "bubble.left.and.bubble.right").frame(minWidth: 44, minHeight: 44)
           }
-          .accessibilityLabel("Conversation menu").disabled(viewModel.isBusy)
+          .accessibilityLabel("Conversation menu").disabled(viewModel.isConversationOperationInProgress)
         }
         if viewModel.isQuestionFocused {
           ToolbarItem(placement: .topBarTrailing) {

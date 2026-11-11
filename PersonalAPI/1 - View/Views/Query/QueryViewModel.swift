@@ -13,7 +13,7 @@ import Observation
   private(set) var submittedTurnCount: Int?
   private(set) var submittedText = ""
   var rowCount: Int {
-    turns.count + ((!isBusy || submittedTurnCount == turns.count) ? 1 : 0)
+    turns.count + ((!isConversationOperationInProgress || submittedTurnCount == turns.count) ? 1 : 0)
   }
   @discardableResult
   func submitQuestion() -> Task<Void, Never>? {
@@ -88,7 +88,7 @@ import Observation
   }
   var conversations: [Conversation] { conversationsFeature.conversations }
   var turns: [ChatTurn] { conversations.first { $0.id == conversationID }?.turns ?? [] }
-  var isBusy: Bool { isSubmitting || conversationsFeature.isBusy }
+  var isConversationOperationInProgress: Bool { isSubmitting || conversationsFeature.isConversationOperationInProgress }
   var activeTurnID: UUID? { conversationsFeature.activeTurnID }
   var canSearch: Bool { !isSubmitting && conversationsFeature.canSend(question) }
   func load() async {
@@ -131,7 +131,7 @@ import Observation
   @discardableResult
   func answerAgain() -> Task<Void, Never>? {
     if let searchTask { return searchTask }
-    guard !isBusy else { return nil }
+    guard !isConversationOperationInProgress else { return nil }
     isSubmitting = true
     let task = Task { [self] in
       defer { searchTask = nil }
@@ -150,13 +150,13 @@ import Observation
   }
   func cancelSearch() { searchTask?.cancel() }
   func newChat() {
-    guard !isBusy else { return }
+    guard !isConversationOperationInProgress else { return }
     conversationID = UUID()
     question = ""
     error = nil
   }
   func open(_ id: UUID) {
-    guard !isBusy else { return }
+    guard !isConversationOperationInProgress else { return }
     conversationID = id
     question = ""
     error = nil

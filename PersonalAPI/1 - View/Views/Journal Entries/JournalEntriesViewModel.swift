@@ -6,7 +6,7 @@ import Observation
   init(momentsFeature: MomentsFeature = AppModel.shared.momentsFeature) { self.momentsFeature = momentsFeature }
   var entries: [MomentSnapshot] { momentsFeature.moments }
   var isLoading: Bool { momentsFeature.isLoading }
-  var error: String? { momentsFeature.loadError }
+  var error: String? { momentsFeature.loadFailure?.localizedDescription }
   private var refreshTask: Task<Void, Never>?
   func refresh() async { await momentsFeature.refresh() }
   @discardableResult

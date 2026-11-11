@@ -11,7 +11,7 @@ private actor MapExtractorStub: LifeMapExtracting {
     return text.split(separator: "|").map { .init(title: String($0), passage: String($0)) }
   }
 }
-@MainActor final class LifeMapTests: XCTestCase {
+@MainActor final class LifeMapFeatureTests: XCTestCase {
   private func entry(_ text: String) -> MomentSnapshot {
     .init(
       id: UUID(), text: text, createdAt: Date(), happenedAt: nil, source: "journal",
@@ -46,7 +46,7 @@ private actor MapExtractorStub: LifeMapExtracting {
     XCTAssertEqual(map.failedCount, 1)
     XCTAssertEqual(map.points.count, 2)
     XCTAssertFalse(map.isReading)
-    XCTAssertEqual(map.issue, LifeMapError.refused.localizedDescription)
+    XCTAssertEqual(map.failures.first?.localizedDescription, LifeMapError.refused.localizedDescription)
     let originals = try await repository.loadMoments()
     XCTAssertEqual(originals.count, 3)
     await map.refresh()
@@ -61,28 +61,28 @@ private actor MapExtractorStub: LifeMapExtracting {
     await map.refresh()
     XCTAssertTrue(map.points.isEmpty)
     XCTAssertEqual(map.processedCount, 0)
-    XCTAssertNotNil(map.issue)
+    XCTAssertFalse(map.failures.isEmpty)
   }
 }
 
-extension LifeMapTests {
+extension LifeMapFeatureTests {
   func testEmptyDatasetFinishesWithoutIssue() async {
     let manager = LifeMapFeature(repository: MemoryRepository(), extractor: MapExtractorStub())
     await manager.refresh()
     XCTAssertEqual(manager.entryCount, 0)
     XCTAssertEqual(manager.attemptedCount, 0)
     XCTAssertFalse(manager.isReading)
-    XCTAssertNil(manager.issue)
+    XCTAssertTrue(manager.failures.isEmpty)
   }
   func testRepositoryFailureCanRetry() async {
     let store = MemoryRepository()
     let manager = LifeMapFeature(repository: store, extractor: MapExtractorStub())
     await store.setFailure(true)
     await manager.refresh()
-    XCTAssertNotNil(manager.issue)
+    XCTAssertFalse(manager.failures.isEmpty)
     XCTAssertFalse(manager.isReading)
     await store.setFailure(false)
     await manager.refresh()
-    XCTAssertNil(manager.issue)
+    XCTAssertTrue(manager.failures.isEmpty)
   }
 }

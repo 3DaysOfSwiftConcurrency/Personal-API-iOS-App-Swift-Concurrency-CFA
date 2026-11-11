@@ -20,7 +20,7 @@ import XCTest
 }
 
 extension SettingsRaceTests {
-  func testOlderExportCompletingLastKeepsItsOwnSnapshot() async throws {
+  func testEquivalentExportsShareOneInFlightSnapshotThenRefreshAfterCompletion() async throws {
     let entered = expectation(description: "First export suspended")
     let barrier = RaceBarrier(entered)
     defer { Task { await barrier.release() } }
@@ -32,11 +32,14 @@ extension SettingsRaceTests {
     let first = Task { try await manager.exportDataset() }
     await fulfillment(of: [entered], timeout: 2)
     try await repository.saveMoment(raceMoment("New entry"))
-    let second = try await manager.exportDataset()
+    let second = Task { try await manager.exportDataset() }
     await barrier.release()
-    let older = try await first.value
+    let firstData = try await first.value
+    let secondData = try await second.value
+    let refreshedData = try await manager.exportDataset()
     let decoder = JSONDecoder()
-    XCTAssertEqual(try decoder.decode(PersonalArchive.self, from: older).moments.count, 0)
-    XCTAssertEqual(try decoder.decode(PersonalArchive.self, from: second).moments.count, 1)
+    XCTAssertEqual(try decoder.decode(PersonalArchive.self, from: firstData).moments.count, 0)
+    XCTAssertEqual(try decoder.decode(PersonalArchive.self, from: secondData).moments.count, 0)
+    XCTAssertEqual(try decoder.decode(PersonalArchive.self, from: refreshedData).moments.count, 1)
   }
 }

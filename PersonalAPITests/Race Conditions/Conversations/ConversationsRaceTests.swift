@@ -23,15 +23,15 @@ import XCTest
     await fulfillment(of: [entered], timeout: 2)
     do {
       try await manager.send("Second?", in: id)
-      XCTFail("Expected busy")
+      XCTFail("Expected operation-in-progress rejection")
     } catch {}
     do {
       try await manager.delete(id)
-      XCTFail("Expected busy")
+      XCTFail("Expected operation-in-progress rejection")
     } catch {}
     await barrier.release()
     try await first.value
     XCTAssertEqual(manager.conversations.first?.turns.map(\.question), ["First?"])
-    XCTAssertFalse(manager.isBusy)
+    XCTAssertFalse(manager.isConversationOperationInProgress)
   }
 }

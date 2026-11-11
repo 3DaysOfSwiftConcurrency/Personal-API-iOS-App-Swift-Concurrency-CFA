@@ -7,16 +7,16 @@ import Observation
   private(set) var isRestoring = false
   private(set) var isWorking = false
   private(set) var lastBackup: Date?
-  private(set) var status = "No recovery backup yet."
+  private(set) var status = RecoveryStatus.noBackup
   private(set) var syncIssue: CloudSyncIssue?
-  private(set) var accountStatus: String?
+  private(set) var accountStatus: CloudAccountStatus?
   private(set) var isCheckingAccount = false
   private var syncRevision = 0
   private var reportedSyncIssue: CloudSyncIssue?
   private let account: any CloudAccountChecking
-  private(set) var syncStatus = "Waiting for iCloud sync."
+  private(set) var syncStatus = CloudSyncStatus.waiting
   private(set) var errorContext: RecoveryFailureContext?
-  private(set) var error: String?
+  private(set) var failure: Error?
   private(set) var preview: RecoverySnapshot?
   private let repository: any RecoveryRepository
   private let files: any RecoveryFiles
@@ -90,8 +90,7 @@ import Observation
     reportedSyncIssue = event.issue
     syncIssue = event.issue
     accountStatus = nil
-    syncStatus =
-      event.succeeded ? "Last iCloud operation completed." : "iCloud sync needs attention."
+    syncStatus = event.succeeded ? .completed : .needsAttention
     if event.imported {
       do { try await reload() } catch { recordFailure(error, during: .refreshAfterSync) }
       await backup(force: false)
@@ -121,20 +120,19 @@ import Observation
       switch state {
       case .available:
         syncIssue = reportedSyncIssue
-        accountStatus =
-          "Your iCloud account is available. Sync retries automatically; this check does not confirm that data has uploaded."
+        accountStatus = .available
       case .signedOut:
-        accountStatus = "Sign in to iCloud to enable sync."
+        accountStatus = .signedOut
         syncIssue = CloudSyncIssue(kind: .account, details: nil)
       case .restricted:
-        accountStatus = "iCloud access is restricted on this device."
+        accountStatus = .restricted
         syncIssue = CloudSyncIssue(kind: .restricted, details: nil)
       case .unavailable:
-        accountStatus = "iCloud is temporarily unavailable. Check your connection and try again."
+        accountStatus = .unavailable
       }
     } catch {
       guard !Task.isCancelled, revision == syncRevision else { return }
-      accountStatus = "Could not check your iCloud account."
+      accountStatus = .checkFailed
       syncIssue = CloudSyncIssue.from(error)
     }
   }
@@ -151,16 +149,16 @@ import Observation
         at: now(), themeID: preferences.colourThemeID)
       guard let saved = try await files.prepare(snapshot, force: force) else { return }
       lastBackup = saved.createdAt
-      status = "Recovery backup saved on this device."
+      status = .savedLocally
       stage = .listBackups
       localCopies = try await files.localCopies()
       stage = .uploadBackup
       errorContext = nil
-      error = nil
+      failure = nil
       switch try await files.upload() {
-      case true?: status = "Recovery backup uploaded to iCloud Drive."
-      case false?: status = "Saved locally. iCloud Drive upload is pending."
-      case nil: status = "Saved locally. iCloud Drive is unavailable; retry when signed in."
+      case true?: status = .uploaded
+      case false?: status = .uploadPending
+      case nil: status = .cloudUnavailable
       }
     } catch { recordFailure(error, during: stage) }
   }
@@ -193,7 +191,7 @@ import Observation
     do {
       preview = try await files.preview(url)
       errorContext = nil
-      error = nil
+      failure = nil
     } catch { recordFailure(error, during: .readFile) }
   }
 
@@ -204,7 +202,7 @@ import Observation
     defer { operations.release() }
     guard !Task.isCancelled else { return }
     guard canRestore() else {
-      recordFailure(BackupError.busy, during: .restoreBusy)
+      recordFailure(BackupError.restoreBlockedByConversationOperation, during: .restoreBlockedByConversationOperation)
       return
     }
     guard let preview else { return }
@@ -222,9 +220,9 @@ import Observation
       // Device authentication preferences deliberately remain untouched.
       preferences.colourThemeID = preview.colourThemeID
       self.preview = nil
-      status = "Restored. A copy of the previous data is saved on this device."
+      status = .restored
       errorContext = nil
-      error = nil
+      failure = nil
       stage = .refreshAfterRestore
       try await reload()
       localCopies = try await files.localCopies()
@@ -232,7 +230,7 @@ import Observation
   }
   private func recordFailure(_ failure: Error, during context: RecoveryFailureContext) {
     errorContext = context
-    error = failure.localizedDescription
+    self.failure = failure
   }
 
 }

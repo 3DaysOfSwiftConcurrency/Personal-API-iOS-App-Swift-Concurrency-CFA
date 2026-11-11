@@ -5,11 +5,12 @@ import Observation
   private(set) var enabled = false
   private(set) var unlocked = false
   private(set) var authenticating = false
-  private(set) var error: String?
+  private(set) var failure: AuthenticationFailure?
   private let client: any DeviceAuthentication
   private let preferences: any PreferencesRepository
   private var generation = 0
   private var authenticationTask: Task<Bool, Never>?
+  private let lockSettingOperations = FIFOOperationGate()
   init(client: any DeviceAuthentication, preferences: any PreferencesRepository) {
     self.client = client
     self.preferences = preferences
@@ -38,13 +39,13 @@ import Observation
       let success = try await client.authenticate()
       try Task.checkCancellation()
       guard generation == request else { return false }
-      error = success ? nil : "Authentication was not completed."
+      failure = success ? nil : .rejected
       return success
     } catch is CancellationError {
       return false
     } catch {
       guard generation == request else { return false }
-      self.error = error.localizedDescription
+      failure = .provider(error)
       return false
     }
   }
@@ -54,10 +55,18 @@ import Observation
     unlocked = true
   }
   func setEnabled(_ value: Bool) async {
+    await lockSettingOperations.acquire()
+    defer { lockSettingOperations.release() }
+    guard !Task.isCancelled else { return }
     let success = await authenticate()
     guard !Task.isCancelled, success else { return }
     unlocked = true
     preferences.lockEnabled = value
     enabled = value
   }
+}
+
+enum AuthenticationFailure {
+  case rejected
+  case provider(Error)
 }

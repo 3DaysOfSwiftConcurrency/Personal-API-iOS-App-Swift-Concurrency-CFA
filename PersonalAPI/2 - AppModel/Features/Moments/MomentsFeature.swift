@@ -4,10 +4,9 @@ import Observation
 @MainActor @Observable final class MomentsFeature {
   private(set) var moments: [MomentSnapshot] = []
   private(set) var isLoading = false
-  private(set) var loadError: String?
-  private(set) var enrichmentError: String?
+  private(set) var loadFailure: Error?
+  private(set) var enrichmentFailure: MomentEnrichmentFailure?
   private var loaded = false
-  private var loadFailure: Error?
   private var refreshTask: Task<Void, Never>?
   private let repository: any PersonalDataRepository
   private let processor: any MomentProcessor
@@ -15,6 +14,7 @@ import Observation
   private var indexedSources: [UUID: String] = [:]
   private let now: @Sendable () -> Date
   private var enrichmentTask: Task<Void, Never>?
+  private var regenerationTask: Task<Void, Error>?
   private let operations = FIFOOperationGate()
 
   init(
@@ -29,7 +29,7 @@ import Observation
   // Serialise persistence AND publication across suspension, preventing stale refreshes.
 
   func sourceState(for snapshot: MomentSnapshot) -> MomentSourceState {
-    guard loaded, loadError == nil else { return .unavailable }
+    guard loaded, loadFailure == nil else { return .unavailable }
     guard let current = moments.first(where: { $0.id == snapshot.id }) else { return .deleted }
     return current.text == snapshot.text ? .current : .edited
   }
@@ -66,11 +66,9 @@ import Observation
       moments = try await repository.loadMoments()
       loaded = true
       loadFailure = nil
-      loadError = nil
       requestEnrichment()
     } catch {
       loadFailure = error
-      loadError = error.localizedDescription
     }
   }
   func reloadAfterRecovery() async throws {
@@ -122,7 +120,7 @@ import Observation
   }
   private func analysePendingSources() async {
     var attempted: [UUID: String] = [:]
-    enrichmentError = nil
+    enrichmentFailure = nil
     while let moment = moments.first(where: {
       ($0.processingState != "complete" || indexedSources[$0.id] != $0.text)
         && attempted[$0.id] != $0.text
@@ -134,8 +132,7 @@ import Observation
             MomentInput(text: moment.text, createdAt: moment.createdAt))
           guard try await saveAnalysis(result, for: moment) else { continue }
         } catch {
-          enrichmentError =
-            "Your original text is saved. Metadata needs a retry: \(error.localizedDescription)"
+          enrichmentFailure = .metadata(error)
         }
       }
       do {
@@ -143,8 +140,7 @@ import Observation
         try await repository.replaceDerivedFacts(facts, source: moment)
         indexedSources[moment.id] = moment.text
       } catch {
-        enrichmentError =
-          "Your original text is saved. Search indexing needs a retry: \(error.localizedDescription)"
+        enrichmentFailure = .searchIndex(error)
       }
     }
   }
@@ -171,9 +167,27 @@ import Observation
   }
 
   func regenerateMetadata() async throws {
+    if let regenerationTask {
+      try await regenerationTask.value
+      return
+    }
+    let task = Task { [self] in
+      defer { regenerationTask = nil }
+      try await performMetadataRegeneration()
+    }
+    regenerationTask = task
+    try await task.value
+  }
+
+  private func performMetadataRegeneration() async throws {
     // Finish the old pass before marking data pending, so it cannot erase this request.
     await enrichmentTask?.value
     try await markMetadataPending()
     await enrichPendingMoments()
   }
+}
+
+enum MomentEnrichmentFailure {
+  case metadata(Error)
+  case searchIndex(Error)
 }

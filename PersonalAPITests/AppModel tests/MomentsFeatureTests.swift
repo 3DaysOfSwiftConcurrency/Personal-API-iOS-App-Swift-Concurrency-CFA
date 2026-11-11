@@ -10,7 +10,7 @@ import XCTest
     let stored = try await graph.repository.loadMoments()
     XCTAssertEqual(stored.first?.text, "Dad called yesterday")
     XCTAssertEqual(stored.first?.processingState, "pending")
-    XCTAssertNotNil(graph.app.momentsFeature.enrichmentError)
+    XCTAssertNotNil(graph.app.momentsFeature.enrichmentFailure)
   }
   func testConcurrentSavesAndRefreshKeepBothSources() async throws {
     let graph = TestAppModelFactory()
@@ -27,10 +27,10 @@ import XCTest
     let graph = TestAppModelFactory()
     await graph.repository.setFailure(true)
     await graph.app.momentsFeature.loadIfRequired()
-    XCTAssertNotNil(graph.app.momentsFeature.loadError)
+    XCTAssertNotNil(graph.app.momentsFeature.loadFailure)
     await graph.repository.setFailure(false)
     await graph.app.momentsFeature.loadIfRequired()
-    XCTAssertNil(graph.app.momentsFeature.loadError)
+    XCTAssertNil(graph.app.momentsFeature.loadFailure)
   }
   func testCancelledSaveDoesNotPersist() async {
     let graph = TestAppModelFactory()
@@ -72,7 +72,7 @@ extension MomentsFeatureTests {
     let facts = try await repository.loadFacts()
     XCTAssertEqual(Set(facts.map(\.value)), Set(text.components(separatedBy: "\n")))
     XCTAssertTrue(facts.allSatisfy { $0.isSupported(by: source) })
-    XCTAssertNil(manager.enrichmentError)
+    XCTAssertNil(manager.enrichmentFailure)
     await manager.enrichPendingMoments()
     let again = try await repository.loadFacts()
     XCTAssertEqual(again, facts)
@@ -89,12 +89,12 @@ extension MomentsFeatureTests {
     let saved = try await repository.loadMoments()
     XCTAssertEqual(saved.count, 1)
     XCTAssertEqual(saved.first?.text, "My job is an iOS developer.")
-    XCTAssertNotNil(manager.enrichmentError)
+    XCTAssertNotNil(manager.enrichmentFailure)
     await extractor.allowExtraction()
     await manager.enrichPendingMoments()
     let facts = try await repository.loadFacts()
     XCTAssertEqual(facts.count, 1)
-    XCTAssertNil(manager.enrichmentError)
+    XCTAssertNil(manager.enrichmentFailure)
   }
 
   func testExtractionDoesNotInferFromUnrelatedTextOrTruncateLongQualifications() async throws {

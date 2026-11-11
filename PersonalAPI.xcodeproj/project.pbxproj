@@ -86,7 +86,7 @@
 		AD2A5E3CFE7D456291E70E9B /* AuthenticationRaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F1AD82D485346D498B26BFF /* AuthenticationRaceTests.swift */; };
 		AF3A1114E31EA1956FC50696 /* MomentsFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA95AA6B22D02A83E7A24AE5 /* MomentsFeatureTests.swift */; };
 		B0DD9FCED53CC97FF7BE7622 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13811DA62BF09B07DDF9ADD3 /* SettingsView.swift */; };
-		B14D5E14F4184C01B4E0A92F /* LifeMapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D0152D228A549CFA4F360E8 /* LifeMapTests.swift */; };
+		B14D5E14F4184C01B4E0A92F /* LifeMapFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D0152D228A549CFA4F360E8 /* LifeMapFeatureTests.swift */; };
 		B26C7B4E0A9F4F67BED8F87C /* SettingsRaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 076E961FD06540149B0D80E9 /* SettingsRaceTests.swift */; };
 		B89A819BF3B3E65291EE362D /* MomentDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00BC283BF982E1E5913FCDF /* MomentDetailViewModel.swift */; };
 		BB4FBB8B8796CF6B1F1A96ED /* MomentProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D867245602CD282E40C1AEB /* MomentProcessor.swift */; };
@@ -178,7 +178,7 @@
 		62B1FB9276B74FDD809D03B7 /* LifeMapFeature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeMapFeature.swift; sourceTree = "<group>"; };
 		68F434E66E427572581282C9 /* ExportDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportDocument.swift; sourceTree = "<group>"; };
 		6946D2487ECC44F59A7D0FBF /* ExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportView.swift; sourceTree = "<group>"; };
-		6D0152D228A549CFA4F360E8 /* LifeMapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeMapTests.swift; sourceTree = "<group>"; };
+		6D0152D228A549CFA4F360E8 /* LifeMapFeatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeMapFeatureTests.swift; sourceTree = "<group>"; };
 		6D795F13C8C22E022040EE00 /* PersonalAPI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = PersonalAPI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F1AD82D485346D498B26BFF /* AuthenticationRaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationRaceTests.swift; sourceTree = "<group>"; };
 		70C8DE1604FEDFFD92D0C75D /* QueryFeature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryFeature.swift; sourceTree = "<group>"; };
@@ -605,7 +605,7 @@
 				C7AC2EC469063D1C6F754FA1 /* CloudSyncHelpTests.swift */,
 				830FCAFE3AE07998F21979A0 /* BackupFeatureTests.swift */,
 				24B44BD8BF980565DDDF9A4F /* ProfileFeatureTests.swift */,
-				6D0152D228A549CFA4F360E8 /* LifeMapTests.swift */,
+				6D0152D228A549CFA4F360E8 /* LifeMapFeatureTests.swift */,
 				44DEB2D1F4B2EF46E0577F33 /* AppModelTests.swift */,
 				20AC8B018D2D48889C7A0FDC /* ConversationsFeatureTests.swift */,
 				0CFE868C0012F92041F1798C /* Test Support */,
@@ -909,7 +909,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7EC088906D4CF7AB75405FDD /* ThemeStoreTests.swift in Sources */,
-				B14D5E14F4184C01B4E0A92F /* LifeMapTests.swift in Sources */,
+				B14D5E14F4184C01B4E0A92F /* LifeMapFeatureTests.swift in Sources */,
 				9D894402E893B73107D41C60 /* RootViewModelTests.swift in Sources */,
 				7B67AC0FDD3D45C50F33CAFD /* AuthenticationFeatureTests.swift in Sources */,
 				16A01B214CE6BF2B18F81C4C /* TrainingViewModelTests.swift in Sources */,

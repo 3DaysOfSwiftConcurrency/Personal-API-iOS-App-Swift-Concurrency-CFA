@@ -24,10 +24,10 @@ struct Conversation: Identifiable, Codable, Sendable {
   var title: String { turns.first.map { String($0.question.prefix(70)) } ?? "New chat" }
 }
 enum ConversationError: LocalizedError {
-  case busy, missing, unsupportedArchive
+  case operationInProgress, missing, unsupportedArchive
   var errorDescription: String? {
     switch self {
-    case .busy: return "Please wait for the current operation to finish."
+    case .operationInProgress: return "Please wait for the current operation to finish."
     case .missing: return "This conversation is no longer available."
     case .unsupportedArchive: return "This conversation archive needs a newer app version."
     }

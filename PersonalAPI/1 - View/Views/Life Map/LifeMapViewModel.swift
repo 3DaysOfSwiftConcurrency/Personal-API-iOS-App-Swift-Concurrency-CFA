@@ -10,7 +10,10 @@ import Observation
   var attemptedCount: Int { lifeMapFeature.attemptedCount }
   var failedCount: Int { lifeMapFeature.failedCount }
   var isReading: Bool { lifeMapFeature.isReading }
-  var issue: String? { lifeMapFeature.issue }
+  var issue: String? {
+    let descriptions = Set(lifeMapFeature.failures.map(\.localizedDescription))
+    return descriptions.isEmpty ? nil : descriptions.sorted().joined(separator: "\n\n")
+  }
   private var refreshTask: Task<Void, Never>?
   func refresh() async { await lifeMapFeature.refresh() }
   @discardableResult

@@ -15,10 +15,6 @@ struct MomentSnapshot: Identifiable, Codable, Sendable, Equatable {
       return nil
     }  // Preserve readable raw evidence even if regenerable metadata is corrupt.
   }
-  var analysisIssue: String? {
-    analysisData != nil && analysis == nil
-      ? "Metadata could not be read. Regenerate it in Settings; your original text is safe." : nil
-  }
 }
 
 struct MomentAnalysis: Codable, Sendable, Equatable {

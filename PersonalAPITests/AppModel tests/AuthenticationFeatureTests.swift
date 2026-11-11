@@ -32,12 +32,12 @@ extension AuthenticationFeatureTests {
     let graph = TestAppModelFactory()
     graph.authentication.success = false
     await graph.app.authenticationFeature.unlock()
-    XCTAssertNotNil(graph.app.authenticationFeature.error)
+    XCTAssertNotNil(graph.app.authenticationFeature.failure)
     graph.authentication.success = true
     await graph.app.authenticationFeature.setEnabled(true)
     XCTAssertTrue(graph.preferences.lockEnabled)
     XCTAssertTrue(graph.app.authenticationFeature.unlocked)
-    XCTAssertNil(graph.app.authenticationFeature.error)
+    XCTAssertNil(graph.app.authenticationFeature.failure)
     await graph.app.authenticationFeature.setEnabled(false)
     XCTAssertFalse(graph.preferences.lockEnabled)
     XCTAssertFalse(graph.app.authenticationFeature.enabled)
@@ -59,6 +59,6 @@ extension AuthenticationFeatureTests {
     XCTAssertTrue(preferences.lockEnabled)
     XCTAssertFalse(manager.unlocked)
     XCTAssertFalse(manager.authenticating)
-    XCTAssertNotNil(manager.error)
+    XCTAssertNotNil(manager.failure)
   }
 }

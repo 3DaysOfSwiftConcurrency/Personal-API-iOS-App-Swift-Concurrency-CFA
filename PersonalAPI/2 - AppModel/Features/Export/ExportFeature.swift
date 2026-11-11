@@ -5,6 +5,7 @@ import Observation
 @MainActor @Observable final class ExportFeature {
   private let repository: any PersonalDataRepository
   private let momentsFeature: MomentsFeature
+  private var exportTask: Task<Data, Error>?
 
   init(repository: any PersonalDataRepository, momentsFeature: MomentsFeature) {
     self.repository = repository
@@ -14,6 +15,10 @@ import Observation
   var momentCount: Int { momentsFeature.moments.count }
 
   func exportDataset() async throws -> Data {
-    try await repository.exportArchive()
+    if let exportTask { return try await exportTask.value }
+    let task = Task { [repository] in try await repository.exportArchive() }
+    exportTask = task
+    defer { exportTask = nil }
+    return try await task.value
   }
 }

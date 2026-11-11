@@ -31,8 +31,22 @@ import Observation
   }
   var lockEnabled: Bool { authenticationFeature.enabled }
   var authenticating: Bool { authenticationFeature.authenticating }
-  var authenticationError: String? { authenticationFeature.error }
-  var enrichmentError: String? { settingsFeature.enrichmentError }
+  var authenticationError: String? {
+    guard let failure = authenticationFeature.failure else { return nil }
+    switch failure {
+    case .rejected: return "Authentication was not completed."
+    case .provider(let error): return error.localizedDescription
+    }
+  }
+  var enrichmentError: String? {
+    guard let failure = settingsFeature.enrichmentFailure else { return nil }
+    switch failure {
+    case .metadata(let error):
+      return "Your original text is saved. Metadata needs a retry: \(error.localizedDescription)"
+    case .searchIndex(let error):
+      return "Your original text is saved. Search indexing needs a retry: \(error.localizedDescription)"
+    }
+  }
   var momentCount: Int { settingsFeature.momentCount }
   var factCount: Int { settingsFeature.factCount }
   @discardableResult
@@ -74,7 +88,7 @@ import Observation
     defer { isWorking = false }
     do {
       try await settingsFeature.regenerateMetadata()
-      message = settingsFeature.enrichmentError ?? "Derived metadata regenerated."
+      message = enrichmentError ?? "Derived metadata regenerated."
     } catch { message = error.localizedDescription }
   }
   @discardableResult

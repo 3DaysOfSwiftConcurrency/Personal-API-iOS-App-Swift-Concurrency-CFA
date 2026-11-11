@@ -12,7 +12,7 @@ import XCTest
     let vm = ConversationHistoryViewModel(conversationsFeature: chats)
     await vm.load()
     XCTAssertEqual(vm.conversations.first?.id, id)
-    XCTAssertFalse(vm.isBusy)
+    XCTAssertFalse(vm.isConversationOperationInProgress)
     XCTAssertNil(vm.error)
   }
   func testFailedLoadCanRetry() async {

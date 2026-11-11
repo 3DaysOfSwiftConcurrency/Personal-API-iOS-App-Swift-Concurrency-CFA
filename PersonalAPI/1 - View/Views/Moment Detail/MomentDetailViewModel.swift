@@ -18,4 +18,8 @@ import Observation
   func current(_ snapshot: MomentSnapshot) -> MomentSnapshot {
     momentsFeature.currentMoment(snapshot)
   }
+  func analysisIssue(for snapshot: MomentSnapshot) -> String? {
+    snapshot.analysisData != nil && snapshot.analysis == nil
+      ? "Metadata could not be read. Regenerate it in Settings; your original text is safe." : nil
+  }
 }

@@ -3,10 +3,9 @@ import Observation
 
 @MainActor @Observable final class ProfileFeature {
   private(set) var facts: [PersonalFactSnapshot] = []
-  private(set) var loadError: String?
+  private(set) var loadFailure: Error?
   private(set) var isLoading = false
   private var loaded = false
-  private var loadFailure: Error?
   private var refreshTask: Task<Void, Never>?
   private let repository: any PersonalDataRepository
   private let now: @Sendable () -> Date
@@ -43,10 +42,8 @@ import Observation
       facts = try await repository.loadFacts()
       loaded = true
       loadFailure = nil
-      loadError = nil
     } catch {
       loadFailure = error
-      loadError = error.localizedDescription
     }
   }
   func reloadAfterRecovery() async throws {

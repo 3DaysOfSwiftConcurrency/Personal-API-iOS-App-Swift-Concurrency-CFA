@@ -47,7 +47,7 @@ extension LifeMapRaceTests {
     await operation.value
     XCTAssertEqual(manager.points.map(\.passage), ["Source"])
     XCTAssertFalse(manager.isReading)
-    XCTAssertNil(manager.issue)
+    XCTAssertTrue(manager.failures.isEmpty)
     XCTAssertEqual(manager.failedCount, 0)
   }
 }

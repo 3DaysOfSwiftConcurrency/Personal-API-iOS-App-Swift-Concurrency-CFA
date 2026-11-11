@@ -101,7 +101,7 @@ struct BackupsView: View {
     }
     .fileImporter(
       isPresented: $viewModel.importing, allowedContentTypes: [.json],
-      onCompletion: viewModel.importFinished
+      onCompletion: { result in viewModel.importFinished(result) }
     )
     .confirmationDialog(
       "Replace current data with this snapshot?", isPresented: $viewModel.confirmingRestore,

@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// The full rounded surface is the text view, including its internal padding.
-/// Natiove text selection and scrolling handle touches without an extra tap recognizer.
+/// Native text selection and scrolling handle touches without an extra tap recognizer.
 struct JournalTextEditor: UIViewRepresentable {
   @Binding var text: String
   @Binding var isEditing: Bool
@@ -82,6 +82,13 @@ struct JournalTextEditor: UIViewRepresentable {
 
     init() {
       super.init(frame: .zero, textContainer: nil)
+      configure()
+    }
+    required init?(coder: NSCoder) {
+      super.init(coder: coder)
+      configure()
+    }
+    private func configure() {
       font = .preferredFont(forTextStyle: .body)
       adjustsFontForContentSizeCategory = true
       textContainerInset = UIEdgeInsets(top: 20, left: 12, bottom: 20, right: 12)
@@ -98,7 +105,6 @@ struct JournalTextEditor: UIViewRepresentable {
       placeholder.isAccessibilityElement = false
       addSubview(placeholder)
     }
-    required init?(coder: NSCoder) { fatalError("Use init()") }
     override func layoutSubviews() {
       super.layoutSubviews()
       let x = textContainerInset.left + textContainer.lineFragmentPadding

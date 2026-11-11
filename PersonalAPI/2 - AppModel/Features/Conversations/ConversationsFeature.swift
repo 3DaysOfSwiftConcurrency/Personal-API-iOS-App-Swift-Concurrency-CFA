@@ -3,10 +3,13 @@ import Observation
 
 @MainActor @Observable final class ConversationsFeature {
   private(set) var conversations: [Conversation] = []
-  private(set) var isBusy = false
+  /// A conversation accepts one mutation at a time. Queuing taps would replay stale user intent
+  /// after a generated answer or destructive edit; the UI instead disables those actions.
+  private(set) var isConversationOperationInProgress = false
   private(set) var activeTurnID: UUID?
   private var loaded = false
   private var loadTask: Task<Void, Error>?
+  private var exportTask: Task<Data, Error>?
   private let repository: any ConversationRepository
   private let queryFeature: QueryFeature
   private let now: @Sendable () -> Date
@@ -19,7 +22,7 @@ import Observation
     self.now = now
   }
   func canSend(_ question: String) -> Bool {
-    !isBusy && queryFeature.canSearch(question) && question.count <= 500
+    !isConversationOperationInProgress && queryFeature.canSearch(question) && question.count <= 500
   }
   func load() async throws {
     if loaded { return }
@@ -36,15 +39,15 @@ import Observation
   }
   private func performLoad() async throws {
     guard !loaded else { return }
-    guard !isBusy else { throw ConversationError.busy }
-    isBusy = true
-    defer { isBusy = false }
+    guard !isConversationOperationInProgress else { throw ConversationError.operationInProgress }
+    isConversationOperationInProgress = true
+    defer { isConversationOperationInProgress = false }
     conversations = try await repository.load()
     loaded = true
   }
   func refresh() async throws {
     loaded = false
-    guard !isBusy else { throw ConversationError.busy }
+    guard !isConversationOperationInProgress else { throw ConversationError.operationInProgress }
     try await load()
   }
   private func commit(_ updated: [Conversation]) async throws {
@@ -60,9 +63,9 @@ import Observation
   func send(_ question: String, in conversationID: UUID) async throws {
     try await load()
     guard canSend(question) else { throw QueryFailure.invalidQuestion }
-    isBusy = true
+    isConversationOperationInProgress = true
     defer {
-      isBusy = false
+      isConversationOperationInProgress = false
       activeTurnID = nil
     }
     try Task.checkCancellation()
@@ -84,14 +87,14 @@ import Observation
   }
   func answerAgain(in conversationID: UUID) async throws {
     try await load()
-    guard !isBusy else { throw ConversationError.busy }
+    guard !isConversationOperationInProgress else { throw ConversationError.operationInProgress }
     guard let turn = conversations.first(where: { $0.id == conversationID })?.turns.last else {
       throw ConversationError.missing
     }
-    isBusy = true
+    isConversationOperationInProgress = true
     activeTurnID = turn.id
     defer {
-      isBusy = false
+      isConversationOperationInProgress = false
       activeTurnID = nil
     }
     try await generate(in: conversationID)
@@ -124,18 +127,18 @@ import Observation
   }
   func delete(_ id: UUID) async throws {
     try await load()
-    guard !isBusy else { throw ConversationError.busy }
-    isBusy = true
-    defer { isBusy = false }
+    guard !isConversationOperationInProgress else { throw ConversationError.operationInProgress }
+    isConversationOperationInProgress = true
+    defer { isConversationOperationInProgress = false }
     try await commit(conversations.filter { $0.id != id })
   }
   func recordFeedback(
     _ rating: AnswerFeedback.Rating, explanation: String, turnID: UUID, conversationID: UUID
   ) async throws {
     try await load()
-    guard !isBusy else { throw ConversationError.busy }
-    isBusy = true
-    defer { isBusy = false }
+    guard !isConversationOperationInProgress else { throw ConversationError.operationInProgress }
+    isConversationOperationInProgress = true
+    defer { isConversationOperationInProgress = false }
     var updated = conversations
     guard let chat = updated.firstIndex(where: { $0.id == conversationID }),
       let turn = updated[chat].turns.firstIndex(where: { $0.id == turnID })
@@ -145,7 +148,13 @@ import Observation
     try await commit(updated)
   }
   func export() async throws -> Data {
-    try await load()
-    return try await repository.export(conversations)
+    if let exportTask { return try await exportTask.value }
+    let task = Task { [self] in
+      defer { exportTask = nil }
+      try await load()
+      return try await repository.export(conversations)
+    }
+    exportTask = task
+    return try await task.value
   }
 }

@@ -62,7 +62,7 @@ import XCTest
     } catch is CancellationError {}
     XCTAssertNil(manager.conversations.first?.turns.first?.result)
     XCTAssertEqual(manager.conversations.first?.turns.first?.question, "Who?")
-    XCTAssertFalse(manager.isBusy)
+    XCTAssertFalse(manager.isConversationOperationInProgress)
   }
   func testSaveFailureDoesNotPublishOrCallAI() async throws {
     let store = MemoryConversationRepository()
@@ -124,7 +124,7 @@ extension ConversationsFeatureTests {
       try await manager.load()
       XCTFail("Expected failure")
     } catch {}
-    XCTAssertFalse(manager.isBusy)
+    XCTAssertFalse(manager.isConversationOperationInProgress)
     await store.setFailure(false)
     try await manager.load()
     try await manager.send("Question", in: UUID())
@@ -132,7 +132,7 @@ extension ConversationsFeatureTests {
     let archive = try JSONDecoder().decode([Conversation].self, from: data)
     XCTAssertEqual(archive.first?.turns.first?.question, "Question")
   }
-  func testMissingRetryAndFeedbackAreRejectedAndBusyClears() async throws {
+  func testMissingRetryAndFeedbackAreRejectedAndOperationStateClears() async throws {
     let manager = ConversationsFeature(
       repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     do {
@@ -144,7 +144,7 @@ extension ConversationsFeatureTests {
         .useful, explanation: "", turnID: UUID(), conversationID: UUID())
       XCTFail("Expected missing")
     } catch {}
-    XCTAssertFalse(manager.isBusy)
+    XCTAssertFalse(manager.isConversationOperationInProgress)
     XCTAssertNil(manager.activeTurnID)
     XCTAssertTrue(manager.conversations.isEmpty)
   }
@@ -165,7 +165,7 @@ extension ConversationsFeatureTests {
       XCTFail("Expected failure")
     } catch {}
     XCTAssertEqual(manager.conversations.count, 1)
-    XCTAssertFalse(manager.isBusy)
+    XCTAssertFalse(manager.isConversationOperationInProgress)
   }
 }
 
@@ -186,8 +186,43 @@ extension ConversationsFeatureTests {
     XCTAssertNotNil(manager.conversations.first?.turns.first?.failure)
     XCTAssertNil(manager.conversations.first?.turns.first?.result)
     XCTAssertNil(manager.activeTurnID)
-    XCTAssertFalse(manager.isBusy)
+    XCTAssertFalse(manager.isConversationOperationInProgress)
     let archive = try JSONDecoder().decode([Conversation].self, from: try await manager.export())
     XCTAssertNotNil(archive.first?.turns.first?.failure)
+  }
+
+  func testEquivalentExportsShareOneInFlightRepositoryRead() async throws {
+    let entered = expectation(description: "Conversation export suspended")
+    let barrier = RaceBarrier(entered)
+    defer { Task { await barrier.release() } }
+    let repository = PausedConversationExportRepository(barrier: barrier)
+    let manager = ConversationsFeature(
+      repository: repository, queryFeature: QueryFeature(searcher: ConversationQueryStub()),
+      now: { Date() })
+
+    let first = Task { try await manager.export() }
+    await fulfillment(of: [entered], timeout: 2)
+    let second = Task { try await manager.export() }
+    await Task.yield()
+    let exportCalls = await repository.exportCallCount()
+    XCTAssertEqual(exportCalls, 1)
+    await barrier.release()
+    let firstData = try await first.value
+    let secondData = try await second.value
+    XCTAssertEqual(firstData, secondData)
+  }
+}
+
+private actor PausedConversationExportRepository: ConversationRepository {
+  let barrier: RaceBarrier
+  private(set) var exportCalls = 0
+  init(barrier: RaceBarrier) { self.barrier = barrier }
+  func load() -> [Conversation] { [] }
+  func save(_ conversations: [Conversation]) {}
+  func exportCallCount() -> Int { exportCalls }
+  func export(_ conversations: [Conversation]) async -> Data {
+    exportCalls += 1
+    await barrier.pause()
+    return Data("conversation-export".utf8)
   }
 }

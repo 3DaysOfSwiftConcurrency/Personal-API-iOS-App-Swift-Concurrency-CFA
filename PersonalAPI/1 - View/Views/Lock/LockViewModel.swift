@@ -5,7 +5,13 @@ import Observation
   init(authenticationFeature: AuthenticationFeature = AppModel.shared.authenticationFeature) {
     self.authenticationFeature = authenticationFeature
   }
-  var error: String? { authenticationFeature.error }
+  var error: String? {
+    guard let failure = authenticationFeature.failure else { return nil }
+    switch failure {
+    case .rejected: return "Authentication was not completed."
+    case .provider(let error): return error.localizedDescription
+    }
+  }
   var authenticating: Bool { authenticationFeature.authenticating }
   private var unlockTask: Task<Void, Never>?
   func unlock() async { await authenticationFeature.unlock() }

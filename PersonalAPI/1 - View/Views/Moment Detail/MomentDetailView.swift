@@ -20,7 +20,9 @@ struct MomentDetailView: View {
         }
         Text("Original text · \(displayed.source)").font(.caption).foregroundStyle(
           theme.palette.secondary)
-        if let issue = displayed.analysisIssue { Text(issue).foregroundStyle(theme.palette.error) }
+        if let issue = viewModel.analysisIssue(for: displayed) {
+          Text(issue).foregroundStyle(theme.palette.error)
+        }
         if let analysis = displayed.analysis {
           Text("Derived metadata").font(.headline)
           Text(analysis.title)

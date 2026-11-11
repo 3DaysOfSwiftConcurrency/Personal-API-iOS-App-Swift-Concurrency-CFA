@@ -68,9 +68,9 @@ actor RecoveryFilesStub: RecoveryFiles {
       now: { Date(timeIntervalSince1970: 99) }, canRestore: { true }, reload: {})
     await manager.backup(force: true)
     XCTAssertEqual(manager.lastBackup, Date(timeIntervalSince1970: 99))
-    XCTAssertNotNil(manager.error)
+    XCTAssertNotNil(manager.failure)
     XCTAssertFalse(manager.isWorking)
-    XCTAssertTrue(manager.status.contains("this device"))
+    XCTAssertEqual(manager.status, .savedLocally)
     XCTAssertEqual(manager.errorContext, .uploadBackup)
   }
 
@@ -87,7 +87,7 @@ actor RecoveryFilesStub: RecoveryFiles {
     XCTAssertEqual(preferences.colourThemeID, "Ocean")
     XCTAssertEqual(manager.errorContext, .restore)
     XCTAssertNotNil(manager.preview)
-    XCTAssertNotNil(manager.error)
+    XCTAssertNotNil(manager.failure)
     XCTAssertFalse(manager.isRestoring)
   }
 
@@ -106,7 +106,7 @@ actor RecoveryFilesStub: RecoveryFiles {
     XCTAssertTrue(reloaded)
   }
 
-  func testBusyChatPreventsRestore() async {
+  func testConversationOperationPreventsRestore() async {
     let repository = RecoveryRepositoryStub()
     let manager = BackupFeature(
       repository: repository, files: RecoveryFilesStub(), account: CloudAccountStub(), preferences: MemoryPreferences(),
@@ -115,7 +115,7 @@ actor RecoveryFilesStub: RecoveryFiles {
     await manager.restorePreview()
     let restores = await repository.restores
     XCTAssertEqual(restores, 0)
-    XCTAssertNotNil(manager.error)
+    XCTAssertNotNil(manager.failure)
     XCTAssertNotNil(manager.preview)
   }
 
@@ -126,9 +126,9 @@ actor RecoveryFilesStub: RecoveryFiles {
       now: { Date() }, canRestore: { true }, reload: {})
     await files.setUploaded(false)
     await manager.backup(force: true)
-    XCTAssertTrue(manager.status.contains("pending"))
+    XCTAssertEqual(manager.status, .uploadPending)
     await files.setUploaded(true)
     await manager.backup(force: true)
-    XCTAssertTrue(manager.status.contains("uploaded"))
+    XCTAssertEqual(manager.status, .uploaded)
   }
 }

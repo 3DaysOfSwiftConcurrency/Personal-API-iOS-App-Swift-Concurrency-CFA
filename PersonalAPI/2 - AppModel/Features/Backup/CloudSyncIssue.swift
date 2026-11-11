@@ -10,31 +10,6 @@ struct CloudSyncIssue: Sendable, Equatable {
   let kind: Kind
   let details: String?
 
-  var guidance: String {
-    switch kind {
-    case .account:
-      return
-        "Open Settings, tap your name and sign in to your Apple Account. Under iCloud, check that Personal API is allowed to use iCloud. Then return here and check again."
-    case .restricted:
-      return
-        "iCloud access is restricted. Check Screen Time or ask the person managing this device to allow iCloud access, then check again."
-    case .network:
-      return
-        "Check your Wi-Fi or mobile data connection, then check again. Sync will retry automatically when the connection is available."
-    case .storage:
-      return
-        "Your iCloud storage is full. Open Settings → your name → iCloud to free space or change your storage plan, then check again."
-    case .configuration:
-      return
-        "This version of the app is not configured correctly for iCloud. This needs an app update from the developer; changing your iCloud settings will not fix it. Your local data is not deleted."
-    case .unknown:
-      return
-        "Check your connection and iCloud account below. If the problem continues, share the error details with the app developer. Your local data is not deleted."
-    }
-  }
-
-  var offersSettings: Bool { kind != .configuration }
-
   static func from(_ error: Error?) -> Self {
     guard let error else { return Self(kind: .unknown, details: nil) }
     let nsError = error as NSError

@@ -47,7 +47,7 @@ import Foundation
       files: RecoveryBackupFiles(
         folder: URL.applicationSupportDirectory.appendingPathComponent("PersonalAPI/Backups")),
       account: CloudAccountChecker(), preferences: preferences, now: now,
-      canRestore: { !conversations.isBusy },
+      canRestore: { !conversations.isConversationOperationInProgress },
       reload: {
         async let refreshMoments: Void = moments.reloadAfterRecovery()
         async let refreshProfile: Void = profile.reloadAfterRecovery()

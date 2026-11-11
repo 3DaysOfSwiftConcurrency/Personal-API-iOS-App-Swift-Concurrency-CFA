@@ -54,14 +54,14 @@ struct RecoverySnapshot: Codable, Sendable {
 }
 
 enum BackupError: LocalizedError {
-  case unsupportedFile, invalidFile, busy, changedConversation, accountChanged
+  case unsupportedFile, invalidFile, restoreBlockedByConversationOperation, changedConversation, accountChanged
   var errorDescription: String? {
     switch self {
     case .unsupportedFile:
       return "Choose a Personal API recovery file supported by this app version."
     case .invalidFile:
       return "This recovery file contains inconsistent records. Nothing was restored."
-    case .busy: return "Please wait for the current operation to finish."
+    case .restoreBlockedByConversationOperation: return "Please wait for the current operation to finish."
     case .changedConversation:
       return "This chat changed on another device. Reopen it before trying again."
     case .accountChanged:
