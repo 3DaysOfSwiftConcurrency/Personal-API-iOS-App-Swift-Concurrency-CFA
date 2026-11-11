@@ -58,12 +58,12 @@ actor RecoveryFilesStub: RecoveryFiles {
   func preview(_ url: URL) -> RecoverySnapshot { sample }
 }
 
-@MainActor final class BackupManagerTests: XCTestCase {
+@MainActor final class BackupFeatureTests: XCTestCase {
   func testCloudFailureRetainsLocalSuccess() async {
     let repository = RecoveryRepositoryStub()
     let files = RecoveryFilesStub()
     await files.setUploadFailure()
-    let manager = BackupManager(
+    let manager = BackupFeature(
       repository: repository, files: files, account: CloudAccountStub(), preferences: MemoryPreferences(),
       now: { Date(timeIntervalSince1970: 99) }, canRestore: { true }, reload: {})
     await manager.backup(force: true)
@@ -79,7 +79,7 @@ actor RecoveryFilesStub: RecoveryFiles {
     await repository.setRestoreFailure()
     let preferences = MemoryPreferences()
     preferences.colourThemeID = "Ocean"
-    let manager = BackupManager(
+    let manager = BackupFeature(
       repository: repository, files: RecoveryFilesStub(), account: CloudAccountStub(), preferences: preferences,
       now: { Date() }, canRestore: { true }, reload: {})
     await manager.inspect(URL(fileURLWithPath: "/preview"))
@@ -95,7 +95,7 @@ actor RecoveryFilesStub: RecoveryFiles {
     let preferences = MemoryPreferences()
     preferences.lockEnabled = true
     var reloaded = false
-    let manager = BackupManager(
+    let manager = BackupFeature(
       repository: RecoveryRepositoryStub(), files: RecoveryFilesStub(), account: CloudAccountStub(), preferences: preferences,
       now: { Date() }, canRestore: { true }, reload: { reloaded = true })
     await manager.inspect(URL(fileURLWithPath: "/preview"))
@@ -108,7 +108,7 @@ actor RecoveryFilesStub: RecoveryFiles {
 
   func testBusyChatPreventsRestore() async {
     let repository = RecoveryRepositoryStub()
-    let manager = BackupManager(
+    let manager = BackupFeature(
       repository: repository, files: RecoveryFilesStub(), account: CloudAccountStub(), preferences: MemoryPreferences(),
       now: { Date() }, canRestore: { false }, reload: {})
     await manager.inspect(URL(fileURLWithPath: "/preview"))
@@ -121,7 +121,7 @@ actor RecoveryFilesStub: RecoveryFiles {
 
   func testUploadStatusDistinguishesPendingFromConfirmed() async {
     let files = RecoveryFilesStub()
-    let manager = BackupManager(
+    let manager = BackupFeature(
       repository: RecoveryRepositoryStub(), files: files, account: CloudAccountStub(), preferences: MemoryPreferences(),
       now: { Date() }, canRestore: { true }, reload: {})
     await files.setUploaded(false)

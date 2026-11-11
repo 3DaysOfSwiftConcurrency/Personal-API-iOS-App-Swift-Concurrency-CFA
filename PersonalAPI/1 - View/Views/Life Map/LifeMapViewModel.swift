@@ -2,15 +2,25 @@ import Foundation
 import Observation
 
 @MainActor @Observable final class LifeMapViewModel {
-  private let feature: any LifeMapFeature
-  init(feature: any LifeMapFeature = AppModel.shared.lifeMapFeature) { self.feature = feature }
-  var points: [LifeMapPoint] { feature.points }
-  var entryCount: Int { feature.entryCount }
-  var processedCount: Int { feature.processedCount }
-  var attemptedCount: Int { feature.attemptedCount }
-  var failedCount: Int { feature.failedCount }
-  var isReading: Bool { feature.isReading }
-  var issue: String? { feature.issue }
-  func refresh() async { await feature.refresh() }
-  func requestRefresh() { Task { await refresh() } }
+  private let lifeMapFeature: LifeMapFeature
+  init(lifeMapFeature: LifeMapFeature = AppModel.shared.lifeMapFeature) { self.lifeMapFeature = lifeMapFeature }
+  var points: [LifeMapPoint] { lifeMapFeature.points }
+  var entryCount: Int { lifeMapFeature.entryCount }
+  var processedCount: Int { lifeMapFeature.processedCount }
+  var attemptedCount: Int { lifeMapFeature.attemptedCount }
+  var failedCount: Int { lifeMapFeature.failedCount }
+  var isReading: Bool { lifeMapFeature.isReading }
+  var issue: String? { lifeMapFeature.issue }
+  private var refreshTask: Task<Void, Never>?
+  func refresh() async { await lifeMapFeature.refresh() }
+  @discardableResult
+  func requestRefresh() -> Task<Void, Never> {
+    if let refreshTask { return refreshTask }
+    let task = Task { [self] in
+      defer { refreshTask = nil }
+      await refresh()
+    }
+    refreshTask = task
+    return task
+  }
 }

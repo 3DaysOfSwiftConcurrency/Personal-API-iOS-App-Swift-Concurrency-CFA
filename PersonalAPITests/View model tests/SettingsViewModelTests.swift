@@ -6,7 +6,7 @@ import XCTest
   func testExportFailureCannotPresentOldDocument() async throws {
     let graph = TestAppModelFactory()
     let vm = SettingsViewModel(
-      settings: graph.app.settingsFeature, authentication: graph.app.authenticationFeature)
+      settingsFeature: graph.app.settingsFeature, authenticationFeature: graph.app.authenticationFeature)
     let first = await vm.prepareExport()
     XCTAssertTrue(first)
     XCTAssertNotNil(vm.document)
@@ -21,7 +21,7 @@ import XCTest
     try await graph.app.momentsFeature.recordMoment(text: "  café\n", happenedAt: nil)
     try await graph.app.profileFeature.addFact(label: "Name", value: "Matthew")
     let vm = SettingsViewModel(
-      settings: graph.app.settingsFeature, authentication: graph.app.authenticationFeature)
+      settingsFeature: graph.app.settingsFeature, authenticationFeature: graph.app.authenticationFeature)
     let ready = await vm.prepareExport()
     XCTAssertTrue(ready)
     let document = try XCTUnwrap(vm.document)
@@ -37,7 +37,7 @@ extension SettingsViewModelTests {
   func testLockPreferenceAndRegenerationResultsArePresented() async throws {
     let graph = TestAppModelFactory()
     let vm = SettingsViewModel(
-      settings: graph.app.settingsFeature, authentication: graph.app.authenticationFeature)
+      settingsFeature: graph.app.settingsFeature, authenticationFeature: graph.app.authenticationFeature)
     await vm.setLockEnabled(true)
     XCTAssertTrue(vm.lockEnabled)
     XCTAssertNil(vm.authenticationError)
@@ -53,7 +53,7 @@ extension SettingsViewModelTests {
   func testExportCompletionClearsDocumentAndReportsFailure() async {
     let graph = TestAppModelFactory()
     let vm = SettingsViewModel(
-      settings: graph.app.settingsFeature, authentication: graph.app.authenticationFeature)
+      settingsFeature: graph.app.settingsFeature, authenticationFeature: graph.app.authenticationFeature)
     _ = await vm.prepareExport()
     vm.exportFinished(.failure(TestFailure.unavailable))
     XCTAssertNil(vm.document)

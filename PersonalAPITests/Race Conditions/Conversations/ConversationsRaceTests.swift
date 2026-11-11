@@ -2,11 +2,11 @@ import XCTest
 
 @testable import PersonalAPI
 
-@MainActor private final class PausedQuery: QueryFeature {
+@MainActor private final class PausedQuery: QuerySearching {
   let barrier: RaceBarrier
   init(_ barrier: RaceBarrier) { self.barrier = barrier }
   func canSearch(_ question: String) -> Bool { true }
-  func search(_ question: String) async throws -> QueryResult {
+  func search(_ question: String, previousQuestions: [String]) async throws -> QueryResult {
     await barrier.pause()
     return QueryResult(evidence: [], searchedCount: 0)
   }
@@ -16,8 +16,8 @@ import XCTest
     let entered = expectation(description: "Answer entered")
     let barrier = RaceBarrier(entered)
     defer { Task { await barrier.release() } }
-    let manager = ConversationsManager(
-      repository: MemoryConversationRepository(), query: PausedQuery(barrier), now: { Date() })
+    let manager = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: PausedQuery(barrier)), now: { Date() })
     let id = UUID()
     let first = Task { try await manager.send("First?", in: id) }
     await fulfillment(of: [entered], timeout: 2)

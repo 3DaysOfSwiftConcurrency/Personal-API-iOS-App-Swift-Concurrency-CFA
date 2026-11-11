@@ -2,24 +2,31 @@ import Foundation
 import Observation
 
 @MainActor @Observable final class AnswerFeedbackViewModel {
-  private let chats: any ConversationsFeature
+  private let conversationsFeature: ConversationsFeature
   var reason: AnswerFeedback.Rating = .inventedDetail
   var explanation = ""
   private(set) var error: String?
   private(set) var saved = false
   private(set) var isSaving = false
-  init(chats: any ConversationsFeature = AppModel.shared.conversationsFeature) {
-    self.chats = chats
+  private var saveTask: Task<Void, Never>?
+  init(conversationsFeature: ConversationsFeature = AppModel.shared.conversationsFeature) {
+    self.conversationsFeature = conversationsFeature
   }
-  func submit(conversationID: UUID, turnID: UUID) {
-    guard !isSaving else { return }
-    isSaving = true
-    Task { await save(conversationID: conversationID, turnID: turnID) }
+  @discardableResult
+  func submit(conversationID: UUID, turnID: UUID) -> Task<Void, Never> {
+    if let saveTask { return saveTask }
+    let task = Task { [self] in
+      defer { saveTask = nil }
+      await save(conversationID: conversationID, turnID: turnID)
+    }
+    saveTask = task
+    return task
   }
   func save(conversationID: UUID, turnID: UUID) async {
+    isSaving = true
     defer { isSaving = false }
     do {
-      try await chats.recordFeedback(
+      try await conversationsFeature.recordFeedback(
         reason, explanation: explanation, turnID: turnID, conversationID: conversationID)
       error = nil
       saved = true

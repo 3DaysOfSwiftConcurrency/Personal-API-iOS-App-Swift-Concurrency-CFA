@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 @MainActor @Observable final class BackupsViewModel {
-  private let backup: any BackupFeature
+  private let backupFeature: BackupFeature
   private var accountCheck: Task<Void, Never>?
   private var command: Task<Void, Never>?
   var showingAccountCheckResult = false
@@ -10,38 +10,39 @@ import Observation
   var importing = false
   var confirmingRestore = false
   private(set) var importError: String?
-  init(backup: any BackupFeature = AppModel.shared.backupFeature) { self.backup = backup }
-  var localCopies: [RecoveryCopy] { backup.localCopies }
+  init(backupFeature: BackupFeature = AppModel.shared.backupFeature) { self.backupFeature = backupFeature }
+  var localCopies: [RecoveryCopy] { backupFeature.localCopies }
   func load() async {
-    await backup.loadLocalCopies()
+    await backupFeature.loadLocalCopies()
     await checkSync()
   }
-  var syncIssue: CloudSyncIssue? { backup.syncIssue }
-  var accountStatus: String? { backup.accountStatus }
-  var isCheckingAccount: Bool { backup.isCheckingAccount }
-  func checkSync() async { await backup.checkSyncAvailability() }
+  var syncIssue: CloudSyncIssue? { backupFeature.syncIssue }
+  var accountStatus: String? { backupFeature.accountStatus }
+  var isCheckingAccount: Bool { backupFeature.isCheckingAccount }
+  func checkSync() async { await backupFeature.checkSyncAvailability() }
   func checkAccountWithFeedback() async {
     await checkSync()
-    accountCheckResult = backup.accountStatus ?? "The account check could not confirm availability."
-    if backup.syncIssue != nil {
+    accountCheckResult = backupFeature.accountStatus ?? "The account check could not confirm availability."
+    if backupFeature.syncIssue != nil {
       accountCheckResult += "\n\nA sync issue is still reported. Expand Error details to see the underlying failure."
     }
     showingAccountCheckResult = true
   }
   func requestSyncCheck() {
     guard accountCheck == nil else { return }
-    accountCheck = Task {
+    let task = Task { [self] in
+      defer { accountCheck = nil }
       await checkAccountWithFeedback()
-      accountCheck = nil
     }
+    accountCheck = task
   }
   func requestInspect(_ url: URL) { importFinished(.success(url)) }
-  var isWorking: Bool { backup.isWorking }
-  var status: String { backup.status }
-  var syncStatus: String { backup.syncStatus }
-  var error: String? { importError ?? backup.error }
+  var isWorking: Bool { backupFeature.isWorking }
+  var status: String { backupFeature.status }
+  var syncStatus: String { backupFeature.syncStatus }
+  var error: String? { importError ?? backupFeature.error }
   private var errorContext: RecoveryFailureContext {
-    importError != nil ? .readFile : backup.errorContext ?? .createBackup
+    importError != nil ? .readFile : backupFeature.errorContext ?? .createBackup
   }
   var errorTitle: String {
     switch errorContext {
@@ -82,37 +83,40 @@ import Observation
         "Reopen the app to reload the latest data. This message concerns refreshing the screen, not uploading a recovery backup."
     }
   }
-  var preview: RecoverySnapshot? { backup.preview }
-  var lastBackup: Date? { backup.lastBackup }
+  var preview: RecoverySnapshot? { backupFeature.preview }
+  var lastBackup: Date? { backupFeature.lastBackup }
 
-  func backupNow() async { await backup.backup(force: true) }
+  func backupNow() async { await backupFeature.backup(force: true) }
   func requestBackup() {
     guard command == nil else { return }
-    command = Task {
+    let task = Task { [self] in
+      defer { command = nil }
       await backupNow()
-      command = nil
     }
+    command = task
   }
-  func inspect(_ url: URL) async { await backup.inspect(url) }
+  func inspect(_ url: URL) async { await backupFeature.inspect(url) }
   func importFinished(_ result: Result<URL, Error>) {
     guard command == nil else { return }
     switch result {
     case .success(let url):
       importError = nil
-      command = Task {
+      let task = Task { [self] in
+        defer { command = nil }
         await inspect(url)
-        command = nil
       }
+      command = task
     case .failure(let error): importError = error.localizedDescription
     }
   }
-  func restore() async { await backup.restorePreview() }
+  func restore() async { await backupFeature.restorePreview() }
   func requestRestore() {
     guard command == nil else { return }
-    command = Task {
+    let task = Task { [self] in
+      defer { command = nil }
       await restore()
-      command = nil
     }
+    command = task
   }
-  func discardPreview() { backup.discardPreview() }
+  func discardPreview() { backupFeature.discardPreview() }
 }

@@ -6,24 +6,39 @@ import Observation
   var confirmingDelete = false
   var confirmingDiscard = false
   private(set) var finished = false
+  private var commandTask: Task<Void, Never>?
   func cancel() { if hasChanges { confirmingDiscard = true } else { finished = true } }
   func discard() { finished = true }
-  func requestSave() {
+  @discardableResult
+  func requestSave() -> Task<Void, Never> {
+    if let commandTask { return commandTask }
     editing = false
-    Task { finished = await save() }
+    let task = Task { [self] in
+      defer { commandTask = nil }
+      finished = await save()
+    }
+    commandTask = task
+    return task
   }
-  func requestDelete() {
+  @discardableResult
+  func requestDelete() -> Task<Void, Never> {
+    if let commandTask { return commandTask }
     editing = false
-    Task { finished = await delete() }
+    let task = Task { [self] in
+      defer { commandTask = nil }
+      finished = await delete()
+    }
+    commandTask = task
+    return task
   }
-  private let moments: any MomentsFeature
+  private let momentsFeature: MomentsFeature
   private var original: MomentSnapshot?
   var text = ""
   private(set) var isWorking = false
   private(set) var error: String?
-  init(moments: any MomentsFeature = AppModel.shared.momentsFeature) { self.moments = moments }
+  init(momentsFeature: MomentsFeature = AppModel.shared.momentsFeature) { self.momentsFeature = momentsFeature }
   var hasChanges: Bool { original.map { $0.text != text } ?? false }
-  var canSave: Bool { !isWorking && hasChanges && moments.canRecord(text) }
+  var canSave: Bool { !isWorking && hasChanges && momentsFeature.canRecord(text) }
   func prepare(_ entry: MomentSnapshot) {
     guard original == nil else { return }
     original = entry
@@ -34,7 +49,7 @@ import Observation
     isWorking = true
     defer { isWorking = false }
     do {
-      try await moments.updateMoment(original, text: text)
+      try await momentsFeature.updateMoment(original, text: text)
       error = nil
       return true
     } catch {
@@ -47,7 +62,7 @@ import Observation
     isWorking = true
     defer { isWorking = false }
     do {
-      try await moments.deleteMoment(original)
+      try await momentsFeature.deleteMoment(original)
       error = nil
       return true
     } catch {

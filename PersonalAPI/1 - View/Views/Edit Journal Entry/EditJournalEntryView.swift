@@ -4,7 +4,7 @@ struct EditJournalEntryView: View {
   let entry: MomentSnapshot
   @State private var viewModel = EditJournalEntryViewModel()
   @Environment(\.dismiss) private var dismiss
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   var body: some View {
     @Bindable var viewModel = viewModel
     ScrollView {

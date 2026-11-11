@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ExportView: View {
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   @State private var viewModel = ExportViewModel()
 
   var body: some View {

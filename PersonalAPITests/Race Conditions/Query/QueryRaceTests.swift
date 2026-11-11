@@ -17,7 +17,7 @@ private actor PausedSearch: SemanticMomentSearching {
     defer { Task { await barrier.release() } }
     let repository = MemoryRepository()
     try await repository.saveMoment(raceMoment("first second"))
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: PausedSearch(barrier))
     let first = Task { try await manager.search("first") }

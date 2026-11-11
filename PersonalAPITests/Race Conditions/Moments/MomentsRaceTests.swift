@@ -16,7 +16,7 @@ private actor PausedAnalysis: MomentProcessor {
     let barrier = RaceBarrier(entered)
     defer { Task { await barrier.release() } }
     let repository = MemoryRepository()
-    let manager = MomentsManager(
+    let manager = MomentsFeature(
       repository: repository, processor: PausedAnalysis(barrier), now: { Date() })
     try await manager.recordMoment(text: "Original", happenedAt: nil)
     await fulfillment(of: [entered], timeout: 2)

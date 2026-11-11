@@ -2,24 +2,24 @@ import XCTest
 
 @testable import PersonalAPI
 
-@MainActor final class ThemeManagerTests: XCTestCase {
+@MainActor final class ThemeStoreTests: XCTestCase {
   func testMissingOrUnknownPreferenceUsesMidnight() {
     let preferences = MemoryPreferences()
-    XCTAssertEqual(ThemeManager(preferences: preferences).palette, .midnight)
+    XCTAssertEqual(ThemeStore(preferences: preferences).palette, .midnight)
     preferences.colourThemeID = "Removed theme"
-    XCTAssertEqual(ThemeManager(preferences: preferences).palette, .midnight)
+    XCTAssertEqual(ThemeStore(preferences: preferences).palette, .midnight)
   }
 
   func testEveryThemePersistsAcrossReconstruction() throws {
-    let suiteName = "ThemeManagerTests.\(UUID().uuidString)"
+    let suiteName = "ThemeStoreTests.\(UUID().uuidString)"
     let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
     defer { defaults.removePersistentDomain(forName: suiteName) }
-    let manager = ThemeManager(preferences: LocalPreferences(defaults: defaults))
+    let store = ThemeStore(preferences: LocalPreferences(defaults: defaults))
 
     for theme in AppColourTheme.all {
-      manager.palette = theme
+      store.palette = theme
       let restoredDefaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-      let restored = ThemeManager(preferences: LocalPreferences(defaults: restoredDefaults))
+      let restored = ThemeStore(preferences: LocalPreferences(defaults: restoredDefaults))
       XCTAssertEqual(restored.palette, theme)
     }
   }

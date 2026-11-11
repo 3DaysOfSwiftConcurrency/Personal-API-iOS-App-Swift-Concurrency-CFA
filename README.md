@@ -29,9 +29,9 @@ The dataset is yours to refine. Exporting creates a portable snapshot; it does n
 The guiding principles are **KISS and readability**: clear names, straightforward control flow, explicit ownership and small, meaningful components. Compact code is not automatically simple code.
 
 ```text
-SwiftUI View → Dedicated ViewModel → Feature API → Feature Manager
-                                                    ├── Worker actors
-                                                    └── Repositories
+SwiftUI View → Dedicated ViewModel → Concrete Feature
+                                      ├── Worker actors
+                                      └── Resource managers
 
 AppModel.live() assembles the shared feature dependencies.
 ```
@@ -40,9 +40,9 @@ AppModel.live() assembles the shared feature dependencies.
 | --- | --- |
 | SwiftUI Views | Describe content, bindings and presentation; forward user intent. |
 | Dedicated ViewModels | Own each screen's drafts, selection, presentation state and feature interactions. |
-| Feature APIs and managers | Own reusable business behaviour and shared state, independent of a particular screen. Managers expose observable state on the Main Actor. |
+| Features | Own reusable business behaviour and shared state, independent of a particular screen. Concrete Features expose observable state on the Main Actor. |
 | Worker actors | Perform suitable processing, search and generation work across explicit isolation boundaries. |
-| Repositories | Own persistence and device integration behind injectable interfaces. |
+| Resource managers | Own persistence and device integration behind injectable worker-facing interfaces. |
 | AppModel | Construct and connect the live feature graph in one composition root. |
 
 ### The engine belongs to the features
@@ -67,7 +67,7 @@ PersonalAPI/
 │   └── Theme/             # Named colours, palettes and theme selection
 ├── 2 - AppModel/
 │   ├── AppModel.swift     # Feature composition
-│   ├── Features/          # Feature contracts, managers and workers
+│   ├── Features/          # Concrete Features, value types and workers
 │   ├── Operation Scheduling/
 │   └── User Data Storage/
 ├── 3 - App Resources/
@@ -81,7 +81,7 @@ PersonalAPITests/
 
 **[Explore the CFA Toolkit on GitHub →](https://github.com/3DaysOfSwift/cooperative-feature-architecture)**
 
-The toolkit provides five AI skills for app creation, architecture adoption, Swift Concurrency migration, architecture review and iterative codebase tidying. They give developers and coding agents a shared set of ownership rules and verification steps. Generated code still needs human review and appropriate testing.
+The toolkit provides focused workflows for app creation, architecture adoption, Swift Concurrency migration, architecture review, feature work, testing and iterative codebase tidying. They give developers and coding agents a shared set of ownership rules and verification steps. Generated code still needs human review and appropriate testing.
 
 For this app's implementation details, see [ARCHITECTURE.md](ARCHITECTURE.md), the [CFA tidy review](Documentation/CFA_TIDY_REVIEW.md) and [project instructions](AGENTS.md).
 
@@ -116,7 +116,7 @@ For shared Model and presentation-state tests on macOS:
 swift test
 ```
 
-The latest local shared-suite run on **16 September 2026** completed with **157 passed, four opt-in live-AI checks skipped, and zero failures**. Coverage includes dedicated suites for all 14 screen ViewModels, feature behaviours, persistence, theme restoration and controlled concurrency cases.
+The latest local shared-suite run on **11 November 2026** completed with **166 tests executed, four opt-in live-AI checks skipped, and zero failures**. Coverage includes dedicated suites for screen ViewModels, every top-level Feature, persistence, theme restoration and controlled concurrency cases.
 
 The macOS harness does not exercise iPhone rendering or UIKit keyboard interaction. Recent UI changes passed source typechecking; Simulator access was unavailable for visual verification. See [VALIDATION.md](VALIDATION.md) and the [unit-test audit](Documentation/UNIT_TEST_AUDIT.md) for recorded checks and their scope; older entries describe earlier project states.
 

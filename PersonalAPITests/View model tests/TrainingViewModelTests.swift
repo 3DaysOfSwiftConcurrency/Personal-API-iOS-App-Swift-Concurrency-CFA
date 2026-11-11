@@ -5,7 +5,7 @@ import XCTest
 @MainActor final class TrainingViewModelTests: XCTestCase {
   func testSavePreservesSourceAndClearsDraft() async throws {
     let graph = TestAppModelFactory()
-    let vm = TrainingViewModel(moments: graph.app.momentsFeature)
+    let vm = TrainingViewModel(momentsFeature: graph.app.momentsFeature)
     let original = "  Dad called.\nCafé 🌱\n"
     vm.text = original
     await vm.save()
@@ -19,7 +19,7 @@ import XCTest
   func testSaveFailureKeepsDraftAndDoesNotPublish() async {
     let graph = TestAppModelFactory()
     await graph.repository.setFailure(true)
-    let vm = TrainingViewModel(moments: graph.app.momentsFeature)
+    let vm = TrainingViewModel(momentsFeature: graph.app.momentsFeature)
     vm.text = "Keep this thought"
     await vm.save()
     XCTAssertEqual(vm.text, "Keep this thought")
@@ -29,7 +29,7 @@ import XCTest
   }
   func testWhitespaceIsRejected() async {
     let graph = TestAppModelFactory()
-    let vm = TrainingViewModel(moments: graph.app.momentsFeature)
+    let vm = TrainingViewModel(momentsFeature: graph.app.momentsFeature)
     vm.text = " \n "
     XCTAssertFalse(vm.canSave)
     await vm.save()
@@ -41,7 +41,7 @@ import XCTest
 
 extension TrainingViewModelTests {
   func testDoneDismissesKeyboardBeforeClosingEditor() {
-    let vm = TrainingViewModel(moments: TestAppModelFactory().app.momentsFeature)
+    let vm = TrainingViewModel(momentsFeature: TestAppModelFactory().app.momentsFeature)
     vm.isMomentFocused = true
     vm.done()
     XCTAssertFalse(vm.isMomentFocused)
@@ -51,7 +51,7 @@ extension TrainingViewModelTests {
   }
   func testLoadFailureIsVisibleAndRetryClearsIt() async {
     let graph = TestAppModelFactory()
-    let vm = TrainingViewModel(moments: graph.app.momentsFeature)
+    let vm = TrainingViewModel(momentsFeature: graph.app.momentsFeature)
     await graph.repository.setFailure(true)
     await vm.load()
     XCTAssertNotNil(vm.loadError)

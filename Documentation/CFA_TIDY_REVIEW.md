@@ -2,7 +2,7 @@
 
 ## Assessment
 
-The project is substantially easier to read and maintain after these passes. Its feature engine is independent of SwiftUI, every feature manager is main-actor observable, and screen events delegate to adjacent ViewModels. I would describe it as a clean CFA example under validation, rather than certify it as a finished showcase: iPhone runtime and interaction checks remain outstanding.
+The project is substantially easier to read and maintain after these passes. Its feature engine is independent of SwiftUI, every concrete Feature is main-actor observable, and screen events delegate to adjacent ViewModels. It is a clean CFA example under validation; iPhone runtime and interaction checks remain environment-dependent.
 
 ## Completed passes
 

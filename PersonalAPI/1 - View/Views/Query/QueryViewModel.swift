@@ -15,12 +15,13 @@ import Observation
   var rowCount: Int {
     turns.count + ((!isBusy || submittedTurnCount == turns.count) ? 1 : 0)
   }
-  func submitQuestion() {
-    guard canSearch else { return }
+  @discardableResult
+  func submitQuestion() -> Task<Void, Never>? {
+    guard canSearch else { return nil }
     submittedText = question
     submittedTurnCount = turns.count
     isQuestionFocused = false
-    submitSearch()
+    return submitSearch()
   }
   func showMomentEntry() {
     isQuestionFocused = false
@@ -32,15 +33,38 @@ import Observation
     open(historySelection)
     self.historySelection = nil
   }
-  func markUseful(_ id: UUID) { Task { await feedback(.useful, explanation: "", turnID: id) } }
-  func retryLoading() { Task { await load() } }
-  func requestExport() {
-    Task {
+  @discardableResult
+  func markUseful(_ id: UUID) -> Task<Void, Never> {
+    if let task = feedbackTasks[id] { return task }
+    let task = Task { [self] in
+      defer { feedbackTasks[id] = nil }
+      _ = await feedback(.useful, explanation: "", turnID: id)
+    }
+    feedbackTasks[id] = task
+    return task
+  }
+  @discardableResult
+  func retryLoading() -> Task<Void, Never> {
+    if let loadTask { return loadTask }
+    let task = Task { [self] in
+      defer { loadTask = nil }
+      await load()
+    }
+    loadTask = task
+    return task
+  }
+  @discardableResult
+  func requestExport() -> Task<Void, Never> {
+    if let exportTask { return exportTask }
+    let task = Task { [self] in
+      defer { exportTask = nil }
       if let data = await exportChats() {
         exportDocument = ExportDocument(data: data)
         showsExport = true
       }
     }
+    exportTask = task
+    return task
   }
   func exportFinished(_ result: Result<URL, Error>) {
     if case .failure(let error) = result { exportFailed(error) }
@@ -54,28 +78,38 @@ import Observation
   private(set) var error: String?
   private(set) var isSubmitting = false
   private(set) var loaded = false
-  private let chats: any ConversationsFeature
-  private var task: Task<Void, Never>?
-  init(chats: any ConversationsFeature = AppModel.shared.conversationsFeature) {
-    self.chats = chats
+  private let conversationsFeature: ConversationsFeature
+  private var searchTask: Task<Void, Never>?
+  private var loadTask: Task<Void, Never>?
+  private var exportTask: Task<Void, Never>?
+  private var feedbackTasks: [UUID: Task<Void, Never>] = [:]
+  init(conversationsFeature: ConversationsFeature = AppModel.shared.conversationsFeature) {
+    self.conversationsFeature = conversationsFeature
   }
-  var conversations: [Conversation] { chats.conversations }
+  var conversations: [Conversation] { conversationsFeature.conversations }
   var turns: [ChatTurn] { conversations.first { $0.id == conversationID }?.turns ?? [] }
-  var isBusy: Bool { isSubmitting || chats.isBusy }
-  var activeTurnID: UUID? { chats.activeTurnID }
-  var canSearch: Bool { !isSubmitting && chats.canSend(question) }
+  var isBusy: Bool { isSubmitting || conversationsFeature.isBusy }
+  var activeTurnID: UUID? { conversationsFeature.activeTurnID }
+  var canSearch: Bool { !isSubmitting && conversationsFeature.canSend(question) }
   func load() async {
     do {
-      try await chats.load()
+      try await conversationsFeature.load()
       // Load history without selecting it; each launch starts with a fresh draft.
       loaded = true
       error = nil
     } catch { self.error = error.localizedDescription }
   }
-  func submitSearch() {
-    guard canSearch else { return }
+  @discardableResult
+  func submitSearch() -> Task<Void, Never>? {
+    if let searchTask { return searchTask }
+    guard canSearch else { return nil }
     isSubmitting = true
-    task = Task { await sendDraft() }
+    let task = Task { [self] in
+      defer { searchTask = nil }
+      await sendDraft()
+    }
+    searchTask = task
+    return task
   }
   func sendDraft() async {
     let draft = question
@@ -90,14 +124,17 @@ import Observation
     }
     error = nil
     do {
-      try await chats.send(draft, in: id)
+      try await conversationsFeature.send(draft, in: id)
     } catch is CancellationError {} catch { self.error = error.localizedDescription }
     if turns.count == originalCount && question.isEmpty { question = draft }
   }
-  func answerAgain() {
-    guard !isBusy else { return }
+  @discardableResult
+  func answerAgain() -> Task<Void, Never>? {
+    if let searchTask { return searchTask }
+    guard !isBusy else { return nil }
     isSubmitting = true
-    task = Task {
+    let task = Task { [self] in
+      defer { searchTask = nil }
       defer {
         isSubmitting = false
         submittedTurnCount = nil
@@ -105,11 +142,13 @@ import Observation
       }
       do {
         error = nil
-        try await chats.answerAgain(in: conversationID)
+        try await conversationsFeature.answerAgain(in: conversationID)
       } catch is CancellationError {} catch { self.error = error.localizedDescription }
     }
+    searchTask = task
+    return task
   }
-  func cancelSearch() { task?.cancel() }
+  func cancelSearch() { searchTask?.cancel() }
   func newChat() {
     guard !isBusy else { return }
     conversationID = UUID()
@@ -125,7 +164,7 @@ import Observation
   @discardableResult
   func feedback(_ rating: AnswerFeedback.Rating, explanation: String, turnID: UUID) async -> Bool {
     do {
-      try await chats.recordFeedback(
+      try await conversationsFeature.recordFeedback(
         rating, explanation: explanation, turnID: turnID, conversationID: conversationID)
       error = nil
       return true
@@ -136,7 +175,7 @@ import Observation
   }
   func exportFailed(_ failure: Error) { error = failure.localizedDescription }
   func exportChats() async -> Data? {
-    do { return try await chats.export() } catch {
+    do { return try await conversationsFeature.export() } catch {
       self.error = error.localizedDescription
       return nil
     }

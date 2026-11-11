@@ -2,7 +2,7 @@ import XCTest
 
 @testable import PersonalAPI
 
-@MainActor final class MomentsManagerTests: XCTestCase {
+@MainActor final class MomentsFeatureTests: XCTestCase {
   func testEnrichmentFailurePreservesCommittedSource() async throws {
     let graph = TestAppModelFactory(processor: FailingProcessor())
     try await graph.app.momentsFeature.recordMoment(text: "Dad called yesterday", happenedAt: nil)
@@ -56,7 +56,7 @@ private actor RetryFactExtractor: JournalFactExtracting {
   }
 }
 
-extension MomentsManagerTests {
+extension MomentsFeatureTests {
   func testAutomaticFactsPreserveQualificationsAndBackfillCompletedEntries() async throws {
     let repository = MemoryRepository()
     let text =
@@ -65,7 +65,7 @@ extension MomentsManagerTests {
       id: UUID(), text: text, createdAt: Date(), happenedAt: nil,
       source: "manual", analysisData: nil, processingState: "complete")
     try await repository.saveMoment(source)
-    let manager = MomentsManager(
+    let manager = MomentsFeature(
       repository: repository, processor: FailingProcessor(), now: { Date() })
     await manager.refresh()
     await manager.enrichPendingMoments()
@@ -81,7 +81,7 @@ extension MomentsManagerTests {
   func testExtractionFailureDoesNotLoseJournalAndCanRetry() async throws {
     let repository = MemoryRepository()
     let extractor = RetryFactExtractor()
-    let manager = MomentsManager(
+    let manager = MomentsFeature(
       repository: repository, processor: LocalMomentProcessor(now: { Date() }),
       now: { Date() }, factExtractor: extractor)
     try await manager.recordMoment(text: "My job is an iOS developer.", happenedAt: nil)
@@ -109,7 +109,7 @@ extension MomentsManagerTests {
   }
 }
 
-extension MomentsManagerTests {
+extension MomentsFeatureTests {
   func testEditingReindexesAndFailedDeleteKeepsPublishedEntry() async throws {
     let graph = TestAppModelFactory()
     let feature = graph.app.momentsFeature
@@ -157,11 +157,11 @@ private actor SuspendedEditProcessor: MomentProcessor {
   }
 }
 
-extension MomentsManagerTests {
+extension MomentsFeatureTests {
   func testOldProcessingCannotOverwriteAnEdit() async throws {
     let repository = MemoryRepository()
     let processor = SuspendedEditProcessor()
-    let manager = MomentsManager(repository: repository, processor: processor, now: { Date() })
+    let manager = MomentsFeature(repository: repository, processor: processor, now: { Date() })
     try await manager.recordMoment(text: "Before", happenedAt: nil)
     while !(await processor.started()) { await Task.yield() }
     let original = try XCTUnwrap(manager.moments.first)
@@ -173,7 +173,7 @@ extension MomentsManagerTests {
   }
 }
 
-extension MomentsManagerTests {
+extension MomentsFeatureTests {
   func testSourceResolutionAndValidationStates() async throws {
     let graph = TestAppModelFactory()
     let feature = graph.app.momentsFeature

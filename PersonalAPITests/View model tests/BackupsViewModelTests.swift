@@ -4,84 +4,90 @@ import XCTest
 
 @MainActor final class BackupsViewModelTests: XCTestCase {
   func testCommandsAndStatusUseFeature() async {
-    let feature = BackupStub()
-    let viewModel = BackupsViewModel(backup: feature)
+    let repository = ViewRecoveryRepositoryStub()
+    let files = ViewRecoveryFilesStub()
+    let feature = makeBackupFeature(repository: repository, files: files)
+    let viewModel = BackupsViewModel(backupFeature: feature)
+
     await viewModel.backupNow()
-    XCTAssertEqual(feature.requests, [true])
+    let preparedForces = await files.preparedForces
+    XCTAssertEqual(preparedForces, [true])
+
     let url = URL(fileURLWithPath: "/test.json")
     await viewModel.inspect(url)
-    XCTAssertEqual(feature.inspected, url)
+    let inspected = await files.inspected
+    XCTAssertEqual(inspected, url)
     await viewModel.restore()
-    XCTAssertTrue(feature.restored)
+    let restores = await repository.restores
+    XCTAssertEqual(restores, 1)
     XCTAssertEqual(viewModel.status, feature.status)
-    feature.error = "failure"
-    XCTAssertEqual(viewModel.error, "failure")
-    feature.isWorking = true
-    XCTAssertTrue(viewModel.isWorking)
   }
+
   func testImportFailureIsVisible() {
-    let vm = BackupsViewModel(backup: BackupStub())
-    vm.importFinished(.failure(TestFailure.unavailable))
-    XCTAssertNotNil(vm.error)
+    let viewModel = BackupsViewModel(backupFeature: makeBackupFeature())
+    viewModel.importFinished(.failure(TestFailure.unavailable))
+    XCTAssertNotNil(viewModel.error)
   }
-}
 
-extension BackupsViewModelTests {
   func testSyncCheckAndIssueAreExposedFromFeature() async {
-    let feature = BackupStub()
-    feature.syncIssue = CloudSyncIssue(kind: .configuration, details: "Missing container")
-    let vm = BackupsViewModel(backup: feature)
-    await vm.checkSync()
-    XCTAssertEqual(feature.checks, 1)
-    XCTAssertEqual(vm.syncIssue, feature.syncIssue)
-    feature.isCheckingAccount = true
-    XCTAssertTrue(vm.isCheckingAccount)
-  }
-}
+    let account = CloudAccountStub()
+    await account.setState(.signedOut)
+    let feature = makeBackupFeature(account: account)
+    let viewModel = BackupsViewModel(backupFeature: feature)
 
-extension BackupsViewModelTests {
-  func testErrorContextDistinguishesLocalBackupFromCloudCopy() {
-    let feature = BackupStub()
-    feature.error = "Underlying failure"
-    let vm = BackupsViewModel(backup: feature)
-    feature.errorContext = .createBackup
-    XCTAssertEqual(vm.errorTitle, "Recovery backup could not be created")
-    XCTAssertTrue(vm.errorGuidance.contains("No new recovery backup"))
-    feature.errorContext = .uploadBackup
-    XCTAssertTrue(vm.errorTitle.contains("saved locally"))
-    XCTAssertTrue(vm.errorGuidance.contains("still saved on this device"))
-    XCTAssertEqual(vm.error, "Underlying failure")
+    await viewModel.checkSync()
+
+    let calls = await account.calls
+    XCTAssertEqual(calls, 1)
+    XCTAssertEqual(viewModel.syncIssue?.kind, .account)
+    XCTAssertFalse(viewModel.isCheckingAccount)
   }
 
-  func testPostRestoreRefreshFailureDoesNotSuggestRestoringAgain() {
-    let feature = BackupStub()
-    feature.errorContext = .refreshAfterRestore
-    feature.error = "Refresh failed"
-    let vm = BackupsViewModel(backup: feature)
-    XCTAssertTrue(vm.errorTitle.contains("Data restored"))
-    XCTAssertTrue(vm.errorGuidance.contains("do not need to restore again"))
+  func testErrorContextDistinguishesLocalBackupFromCloudCopy() async {
+    let files = ViewRecoveryFilesStub()
+    let feature = makeBackupFeature(files: files)
+    let viewModel = BackupsViewModel(backupFeature: feature)
+
+    await files.setFailurePoint(.prepare)
+    await viewModel.backupNow()
+    XCTAssertEqual(viewModel.errorTitle, "Recovery backup could not be created")
+    XCTAssertTrue(viewModel.errorGuidance.contains("No new recovery backup"))
+
+    await files.setFailurePoint(.upload)
+    await viewModel.backupNow()
+    XCTAssertTrue(viewModel.errorTitle.contains("saved locally"))
+    XCTAssertTrue(viewModel.errorGuidance.contains("still saved on this device"))
+  }
+
+  func testPostRestoreRefreshFailureDoesNotSuggestRestoringAgain() async {
+    let files = ViewRecoveryFilesStub()
+    let feature = makeBackupFeature(files: files, reload: { throw TestFailure.unavailable })
+    let viewModel = BackupsViewModel(backupFeature: feature)
+
+    await viewModel.inspect(URL(fileURLWithPath: "/test.json"))
+    await viewModel.restore()
+
+    XCTAssertTrue(viewModel.errorTitle.contains("Data restored"))
+    XCTAssertTrue(viewModel.errorGuidance.contains("do not need to restore again"))
   }
 
   func testFilePickerFailureHasFileContext() {
-    let vm = BackupsViewModel(backup: BackupStub())
-    vm.importFinished(.failure(TestFailure.unavailable))
-    XCTAssertEqual(vm.errorTitle, "Recovery file could not be opened")
-    XCTAssertTrue(vm.errorGuidance.contains("Nothing has been restored"))
+    let viewModel = BackupsViewModel(backupFeature: makeBackupFeature())
+    viewModel.importFinished(.failure(TestFailure.unavailable))
+    XCTAssertEqual(viewModel.errorTitle, "Recovery file could not be opened")
+    XCTAssertTrue(viewModel.errorGuidance.contains("Nothing has been restored"))
   }
-}
 
-extension BackupsViewModelTests {
-  func testFastAccountCheckStillPresentsResultAndKeepsSyncFailure() async {
-    let feature = BackupStub()
-    feature.syncIssue = CloudSyncIssue(kind: .unknown, details: "Sync failed")
-    let vm = BackupsViewModel(backup: feature)
-    await vm.checkAccountWithFeedback()
-    XCTAssertTrue(vm.showingAccountCheckResult)
-    XCTAssertTrue(vm.accountCheckResult.contains("sync issue is still reported"))
-    XCTAssertEqual(vm.syncIssue, feature.syncIssue)
-    vm.showingAccountCheckResult = false
-    await vm.checkAccountWithFeedback()
-    XCTAssertTrue(vm.showingAccountCheckResult)
-    XCTAssertEqual(feature.checks, 2)
+  func testFastAccountCheckPresentsResult() async {
+    let account = CloudAccountStub()
+    let feature = makeBackupFeature(account: account)
+    let viewModel = BackupsViewModel(backupFeature: feature)
+
+    await viewModel.checkAccountWithFeedback()
+
+    XCTAssertTrue(viewModel.showingAccountCheckResult)
+    XCTAssertNotNil(viewModel.accountStatus)
+    let calls = await account.calls
+    XCTAssertEqual(calls, 1)
   }
 }

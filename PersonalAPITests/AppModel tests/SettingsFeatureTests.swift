@@ -2,13 +2,13 @@ import XCTest
 
 @testable import PersonalAPI
 
-@MainActor final class SettingsManagerTests: XCTestCase {
+@MainActor final class SettingsFeatureTests: XCTestCase {
   func testPreferencesPersistAcrossReconstruction() {
     let graph = TestAppModelFactory()
     graph.app.settingsFeature.completeOnboarding()
-    let manager = SettingsManager(
+    let manager = SettingsFeature(
       preferences: graph.preferences, repository: graph.repository,
-      moments: graph.app.momentsFeature, profile: graph.app.profileFeature)
+      momentsFeature: graph.app.momentsFeature, profileFeature: graph.app.profileFeature)
     manager.loadPreference()
     XCTAssertTrue(manager.onboarded)
   }

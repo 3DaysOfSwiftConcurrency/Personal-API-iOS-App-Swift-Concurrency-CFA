@@ -17,7 +17,7 @@ import XCTest
     let barrier = RaceBarrier(entered)
     defer { Task { await barrier.release() } }
     let preferences = MemoryPreferences()
-    let manager = AuthenticationManager(
+    let manager = AuthenticationFeature(
       client: PausedAuthentication(barrier), preferences: preferences)
     let first = Task { await manager.setEnabled(true) }
     await fulfillment(of: [entered], timeout: 2)

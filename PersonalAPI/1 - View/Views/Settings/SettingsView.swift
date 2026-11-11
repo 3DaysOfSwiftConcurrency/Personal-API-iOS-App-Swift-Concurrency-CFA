@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
   @State private var viewModel = SettingsViewModel()
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   var body: some View {
     @Bindable var viewModel = viewModel
     NavigationStack {

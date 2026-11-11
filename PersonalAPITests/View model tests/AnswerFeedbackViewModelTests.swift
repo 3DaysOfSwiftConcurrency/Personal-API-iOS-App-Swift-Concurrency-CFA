@@ -4,12 +4,12 @@ import XCTest
 
 @MainActor final class AnswerFeedbackViewModelTests: XCTestCase {
   func testSavePersistsSelectedReasonAndExplanation() async throws {
-    let chats = ConversationsManager(
-      repository: MemoryConversationRepository(), query: ConversationQueryStub(), now: { Date() })
+    let chats = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     let id = UUID()
     try await chats.send("Question", in: id)
     let turn = try XCTUnwrap(chats.conversations.first?.turns.first)
-    let vm = AnswerFeedbackViewModel(chats: chats)
+    let vm = AnswerFeedbackViewModel(conversationsFeature: chats)
     vm.reason = .missingInformation
     vm.explanation = "More context needed"
     await vm.save(conversationID: id, turnID: turn.id)
@@ -21,12 +21,12 @@ import XCTest
   }
   func testFailureKeepsFeedbackDraftForRetry() async throws {
     let store = MemoryConversationRepository()
-    let chats = ConversationsManager(
-      repository: store, query: ConversationQueryStub(), now: { Date() })
+    let chats = ConversationsFeature(
+      repository: store, queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     let id = UUID()
     try await chats.send("Question", in: id)
     let turn = try XCTUnwrap(chats.conversations.first?.turns.first)
-    let vm = AnswerFeedbackViewModel(chats: chats)
+    let vm = AnswerFeedbackViewModel(conversationsFeature: chats)
     vm.explanation = "Keep this draft"
     await store.setFailure(true)
     await vm.save(conversationID: id, turnID: turn.id)

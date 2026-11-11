@@ -4,7 +4,7 @@ struct ConversationHistoryView: View {
   @Binding var selection: UUID?
   @State private var viewModel = ConversationHistoryViewModel()
   @Environment(\.dismiss) private var dismiss
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   var body: some View {
     @Bindable var viewModel = viewModel
     NavigationStack {
@@ -43,7 +43,7 @@ struct ConversationHistoryView: View {
           get: { viewModel.pendingDeletion != nil },
           set: { if !$0 { viewModel.pendingDeletion = nil } })
       ) {
-        Button("Delete conversation", role: .destructive, action: viewModel.deletePending)
+        Button("Delete conversation", role: .destructive) { viewModel.deletePending() }
       }
     }
   }

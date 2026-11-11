@@ -3,77 +3,88 @@ import Foundation
 /// The single live graph. Feature rules and screen state belong to their owners.
 @MainActor final class AppModel {
   static let shared = AppModel.live()
-  let backupFeature: any BackupFeature
-  let lifeMapFeature: any LifeMapFeature
-  let momentsFeature: any MomentsFeature
-  let profileFeature: any ProfileFeature
-  let conversationsFeature: any ConversationsFeature
-  let queryFeature: any QueryFeature
-  let authenticationFeature: any AuthenticationFeature
-  let settingsFeature: any SettingsFeature
-  private var launchTask: Task<Void, Never>?
+  let backupFeature: BackupFeature
+  let exportFeature: ExportFeature
+  let lifeMapFeature: LifeMapFeature
+  let momentsFeature: MomentsFeature
+  let profileFeature: ProfileFeature
+  let conversationsFeature: ConversationsFeature
+  let queryFeature: QueryFeature
+  let authenticationFeature: AuthenticationFeature
+  let settingsFeature: SettingsFeature
+  private var didFinishLaunching = false
 
   init(
-    moments: any MomentsFeature, profile: any ProfileFeature, query: any QueryFeature,
-    authentication: any AuthenticationFeature, settings: any SettingsFeature,
-    conversations: any ConversationsFeature, lifeMap: any LifeMapFeature, backup: any BackupFeature
+    momentsFeature: MomentsFeature, profileFeature: ProfileFeature, queryFeature: QueryFeature,
+    authenticationFeature: AuthenticationFeature, settingsFeature: SettingsFeature,
+    conversationsFeature: ConversationsFeature, lifeMapFeature: LifeMapFeature,
+    backupFeature: BackupFeature, exportFeature: ExportFeature
   ) {
-    backupFeature = backup
-    lifeMapFeature = lifeMap
-    conversationsFeature = conversations
-    momentsFeature = moments
-    profileFeature = profile
-    queryFeature = query
-    authenticationFeature = authentication
-    settingsFeature = settings
+    self.backupFeature = backupFeature
+    self.exportFeature = exportFeature
+    self.lifeMapFeature = lifeMapFeature
+    self.conversationsFeature = conversationsFeature
+    self.momentsFeature = momentsFeature
+    self.profileFeature = profileFeature
+    self.queryFeature = queryFeature
+    self.authenticationFeature = authenticationFeature
+    self.settingsFeature = settingsFeature
   }
   static func live() -> AppModel {
     let now: @Sendable () -> Date = { Date() }
-    let repository = LocalDataStore(cloudEnabled: true)
+    let repository = SwiftDataManager(cloudEnabled: true)
     let preferences = LocalPreferences(defaults: .standard)
-    let moments = MomentsManager(
+    let moments = MomentsFeature(
       repository: repository, processor: LocalMomentProcessor(now: now), now: now)
-    let profile = ProfileManager(repository: repository, now: now)
-    let query = QueryManager(
+    let profile = ProfileFeature(repository: repository, now: now)
+    let query = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: OnDeviceMomentSearch(), answerer: OnDeviceMomentAnswerer())
-    let conversations = ConversationsManager(
-      repository: repository, query: query, now: now)
-    let backup = BackupManager(
+    let conversations = ConversationsFeature(
+      repository: repository, queryFeature: query, now: now)
+    let backup = BackupFeature(
       repository: repository,
       files: RecoveryBackupFiles(
         folder: URL.applicationSupportDirectory.appendingPathComponent("PersonalAPI/Backups")),
       account: CloudAccountChecker(), preferences: preferences, now: now,
       canRestore: { !conversations.isBusy },
       reload: {
-        async let refreshMoments: Void = moments.refresh()
-        async let refreshProfile: Void = profile.refresh()
-        _ = await (refreshMoments, refreshProfile)
+        async let refreshMoments: Void = moments.reloadAfterRecovery()
+        async let refreshProfile: Void = profile.reloadAfterRecovery()
+        _ = try await (refreshMoments, refreshProfile)
         try await conversations.refresh()
       })
     return AppModel(
-      moments: moments, profile: profile,
-      query: query,
-      authentication: AuthenticationManager(
+      momentsFeature: moments, profileFeature: profile,
+      queryFeature: query,
+      authenticationFeature: AuthenticationFeature(
         client: LocalDeviceAuthentication(), preferences: preferences),
-      settings: SettingsManager(
-        preferences: preferences, repository: repository, moments: moments, profile: profile),
-      conversations: conversations,
-      lifeMap: LifeMapManager(repository: repository, extractor: LifeMapExtractor()), backup: backup
+      settingsFeature: SettingsFeature(
+        preferences: preferences, repository: repository, momentsFeature: moments, profileFeature: profile),
+      conversationsFeature: conversations,
+      lifeMapFeature: LifeMapFeature(repository: repository, extractor: LifeMapExtractor()),
+      backupFeature: backup,
+      exportFeature: ExportFeature(repository: repository, momentsFeature: moments)
     )
   }
-  func applicationDidFinishLaunching() {
-    guard launchTask == nil else { return }
+  func applicationDidFinishLaunching() async {
+    guard !didFinishLaunching else { return }
+    didFinishLaunching = true
     // Preferences are ready before any screen renders; construction itself does no I/O.
     authenticationFeature.loadPreference()
     settingsFeature.loadPreference()
     backupFeature.observeChanges()
-    launchTask = Task {
-      async let moments: Void = momentsFeature.loadIfRequired()
-      async let profile: Void = profileFeature.loadIfRequired()
-      _ = await (moments, profile)
-      await backupFeature.backup(force: false)
-    }
+    async let momentsFeature: Void = momentsFeature.loadIfRequired()
+    async let profileFeature: Void = profileFeature.loadIfRequired()
+    _ = await (momentsFeature, profileFeature)
+    await backupFeature.backup(force: false)
   }
-  func awaitInitialLoads() async { await launchTask?.value }
+
+  func applicationDidBecomeActive() async {
+    await backupFeature.backup(force: false)
+  }
+
+  func applicationDidEnterBackground() {
+    authenticationFeature.lockForBackground()
+  }
 }

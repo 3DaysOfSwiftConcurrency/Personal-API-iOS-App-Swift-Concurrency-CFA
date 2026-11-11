@@ -8,7 +8,7 @@ import XCTest
     graph.preferences.lockEnabled = true
     graph.app.authenticationFeature.loadPreference()
     graph.authentication.success = false
-    let vm = LockViewModel(authentication: graph.app.authenticationFeature)
+    let vm = LockViewModel(authenticationFeature: graph.app.authenticationFeature)
     await vm.unlock()
     XCTAssertFalse(graph.app.authenticationFeature.unlocked)
     XCTAssertNotNil(vm.error)

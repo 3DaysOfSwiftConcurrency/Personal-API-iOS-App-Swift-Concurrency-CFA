@@ -1,7 +1,7 @@
 import Observation
 import SwiftUI
 
-@MainActor @Observable final class ThemeManager {
+@MainActor @Observable final class ThemeStore {
   var palette: AppColourTheme {
     didSet { preferences.colourThemeID = palette.id }
   }

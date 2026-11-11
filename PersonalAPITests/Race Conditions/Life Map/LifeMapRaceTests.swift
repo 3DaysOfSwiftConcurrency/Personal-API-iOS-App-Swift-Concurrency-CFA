@@ -18,13 +18,14 @@ private actor PausedMapExtractor: LifeMapExtracting {
     let repository = MemoryRepository()
     let source = raceMoment("I moved home.")
     try await repository.saveMoment(source)
-    let manager = LifeMapManager(repository: repository, extractor: PausedMapExtractor(barrier))
+    let manager = LifeMapFeature(repository: repository, extractor: PausedMapExtractor(barrier))
     let first = Task { await manager.refresh() }
     await fulfillment(of: [entered], timeout: 2)
-    await manager.refresh()
+    let second = Task { await manager.refresh() }
     try await repository.deleteMoment(source)
     await barrier.release()
     await first.value
+    await second.value
     XCTAssertTrue(manager.points.isEmpty)
     XCTAssertEqual(manager.entryCount, 0)
     XCTAssertFalse(manager.isReading)
@@ -32,19 +33,19 @@ private actor PausedMapExtractor: LifeMapExtracting {
 }
 
 extension LifeMapRaceTests {
-  func testCancelledExtractionDoesNotPublishLateResultOrReportFailure() async throws {
+  func testCancellingOneWaiterDoesNotCancelSharedRefresh() async throws {
     let entered = expectation(description: "Extraction suspended")
     let barrier = RaceBarrier(entered)
     defer { Task { await barrier.release() } }
     let repository = MemoryRepository()
     try await repository.saveMoment(raceMoment("Source"))
-    let manager = LifeMapManager(repository: repository, extractor: PausedMapExtractor(barrier))
+    let manager = LifeMapFeature(repository: repository, extractor: PausedMapExtractor(barrier))
     let operation = Task { await manager.refresh() }
     await fulfillment(of: [entered], timeout: 2)
     operation.cancel()
     await barrier.release()
     await operation.value
-    XCTAssertTrue(manager.points.isEmpty)
+    XCTAssertEqual(manager.points.map(\.passage), ["Source"])
     XCTAssertFalse(manager.isReading)
     XCTAssertNil(manager.issue)
     XCTAssertEqual(manager.failedCount, 0)

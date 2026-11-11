@@ -130,7 +130,7 @@ struct PersonalAPIButtonStyle: ButtonStyle {
   enum Appearance { case plain, bordered, outlined }
   var appearance: Appearance = .plain
   var minimumHeight: CGFloat = 40
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   @Environment(\.isEnabled) private var isEnabled
 
   func makeBody(configuration: Configuration) -> some View {

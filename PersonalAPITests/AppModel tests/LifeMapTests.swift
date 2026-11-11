@@ -24,7 +24,7 @@ private actor MapExtractorStub: LifeMapExtracting {
     ] {
       try await repository.saveMoment(entry(text))
     }
-    let map = LifeMapManager(repository: repository, extractor: MapExtractorStub())
+    let map = LifeMapFeature(repository: repository, extractor: MapExtractorStub())
     await map.refresh()
     XCTAssertEqual(map.entryCount, 3)
     XCTAssertEqual(map.processedCount, 3)
@@ -39,7 +39,7 @@ private actor MapExtractorStub: LifeMapExtracting {
     for text in ["I graduated.", "Refused entry", "I moved."] {
       try await repository.saveMoment(entry(text))
     }
-    let map = LifeMapManager(repository: repository, extractor: MapExtractorStub())
+    let map = LifeMapFeature(repository: repository, extractor: MapExtractorStub())
     await map.refresh()
     XCTAssertEqual(map.attemptedCount, 3)
     XCTAssertEqual(map.processedCount, 2)
@@ -57,7 +57,7 @@ private actor MapExtractorStub: LifeMapExtracting {
   func testUnsupportedEvidenceIsNotPublished() async throws {
     let repository = MemoryRepository()
     try await repository.saveMoment(entry("I started work."))
-    let map = LifeMapManager(repository: repository, extractor: MapExtractorStub(invented: true))
+    let map = LifeMapFeature(repository: repository, extractor: MapExtractorStub(invented: true))
     await map.refresh()
     XCTAssertTrue(map.points.isEmpty)
     XCTAssertEqual(map.processedCount, 0)
@@ -67,7 +67,7 @@ private actor MapExtractorStub: LifeMapExtracting {
 
 extension LifeMapTests {
   func testEmptyDatasetFinishesWithoutIssue() async {
-    let manager = LifeMapManager(repository: MemoryRepository(), extractor: MapExtractorStub())
+    let manager = LifeMapFeature(repository: MemoryRepository(), extractor: MapExtractorStub())
     await manager.refresh()
     XCTAssertEqual(manager.entryCount, 0)
     XCTAssertEqual(manager.attemptedCount, 0)
@@ -76,7 +76,7 @@ extension LifeMapTests {
   }
   func testRepositoryFailureCanRetry() async {
     let store = MemoryRepository()
-    let manager = LifeMapManager(repository: store, extractor: MapExtractorStub())
+    let manager = LifeMapFeature(repository: store, extractor: MapExtractorStub())
     await store.setFailure(true)
     await manager.refresh()
     XCTAssertNotNil(manager.issue)

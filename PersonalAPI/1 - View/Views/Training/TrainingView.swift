@@ -4,7 +4,7 @@ import UIKit
 struct TrainingView: View {
   var presentedFromChat = false
   @Environment(\.dismiss) private var dismiss
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   @State private var viewModel = TrainingViewModel()
   var body: some View {
     @Bindable var viewModel = viewModel

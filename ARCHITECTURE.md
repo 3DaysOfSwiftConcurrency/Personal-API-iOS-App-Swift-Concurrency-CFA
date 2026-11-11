@@ -1,9 +1,6 @@
-# Personal API — Matthew’s AppModel architecture
+# Personal API — Cooperative Feature Architecture
 
-This project follows the canonical template in the Trend repository Matthew confirmed:
-`/Users/matthewthomas/Documents/Codex/2026-09-03/i-x20/outputs/Trend`.
-
-A snapshot of its [AppModel iOS Application Template](Documentation/APPMODEL_IOS_APPLICATION_TEMPLATE.md) is included. [AGENTS.md](AGENTS.md) records the reference for future changes. The template is the authority; Trend is the implementation example.
+This project follows the repository-local [CFA contract](Documentation/APPMODEL_IOS_APPLICATION_TEMPLATE.md). [AGENTS.md](AGENTS.md) records the maintenance workflow for future changes.
 
 ## Visible structure
 
@@ -13,7 +10,7 @@ PersonalAPI
 │   ├── PersonalAPIApp.swift
 │   ├── Theme
 │   │   ├── AppColourTheme.swift
-│   │   └── ThemeManager.swift
+│   │   └── ThemeStore.swift
 │   └── Views
 │       ├── Root
 │       ├── Onboarding
@@ -30,6 +27,10 @@ PersonalAPI
 │   │   ├── Moments
 │   │   ├── Profile
 │   │   ├── Query
+│   │   ├── Conversations
+│   │   ├── Life Map
+│   │   ├── Export
+│   │   ├── Backup
 │   │   ├── Authentication
 │   │   └── Settings
 │   └── User Data Storage
@@ -50,29 +51,29 @@ Xcode groups mirror the physical folders. There are no empty CloudKit/Networking
 
 ## Responsibilities
 
-**Views** construct their own `@State private var viewModel`, own presentation, render state and report intent. Only immutable data reaches a destination. ThemeManager is a presentation dependency, supplied through the environment. Midnight is the production palette; Graphite is a Debug-only alternative. Both remain dark.
+**Views** construct their own `@State private var viewModel`, own presentation, render state and report intent. Only immutable data reaches a destination. ThemeStore is a presentation dependency, supplied through the environment. Midnight is the production palette; Graphite is a Debug-only alternative. Both remain dark.
 
-**ViewModels** retain narrow replaceable feature protocols, with live defaults from AppModel.shared. They own drafts, display errors, search lifetime and export presentation. They do not use SwiftData or repositories, mutate shared collections, or validate domain data.
+**ViewModels** retain concrete Features, with live defaults from `AppModel.shared`. They own drafts, display errors, task handles and export presentation. They do not use SwiftData or repositories, mutate shared collections, or validate domain data.
 
-**AppModel** has a fully explicit initializer and a `live()` factory. It assembles and retains the five feature managers. ApplicationDelegate initiates launch. A retained launch task starts Moments and Profile loads as structured children; repeated launch calls share that work. The test host skips the production graph. Authentication/onboarding preferences load before presentation.
+**AppModel** has a fully explicit initializer and a `live()` factory. It assembles and retains the concrete Features. `ApplicationDelegate` initiates launch through a stable root. A Boolean makes initial launch idempotent, while feature-owned tasks provide single-flight work. Authentication and settings preferences load before the initial data refresh completes.
 
-**Feature managers** own validation, shared state, retrieval policy, authentication state and workflow ordering. Settings coordinates export and regeneration. Each capability is usable from another UI without moving business logic. Managers publish successful writes only after the repository returns.
+**Features** own validation, shared state, retrieval policy, authentication state and workflow ordering. Export has its own Feature rather than borrowing Settings. Each capability is usable from another UI without moving business logic. Features publish successful writes only after the resource operation returns.
 
-**Repositories** own database, JSON and device integration. LocalDataStore is an actor, lazily opens a SwiftData container and creates fresh contexts with autosave disabled. Models and UI receive immutable Sendable snapshots. LocalDeviceAuthentication wraps LocalAuthentication; LocalPreferences wraps app-owned UserDefaults.
+**Resource managers and repositories** own database, JSON and device integration. `SwiftDataManager` is an actor that lazily opens one SwiftData container after preparing its directory. It creates the `@ModelActor` `SwiftDataRepository`, which owns model-context access. Models and UI receive immutable Sendable snapshots. `LocalDeviceAuthentication` wraps LocalAuthentication; `LocalPreferences` wraps app-owned UserDefaults.
 
 ## Capture and enrichment
 
-TrainingView → TrainingViewModel → MomentsFeature → MomentsManager → PersonalDataRepository → LocalDataStore.
+TrainingView → TrainingViewModel → MomentsFeature → PersonalDataRepository → SwiftDataManager.
 
 The manager rejects blank input without trimming the stored text, assigns a stable ID and capture time using its injected clock, saves the source, publishes it, and requests enrichment. The command returns after the raw save, so the draft can clear independently of analysis. A save failure retains the draft and publishes no new source.
 
 MomentProcessor accepts immutable source input. LocalMomentProcessor is an actor that currently extracts a title only. The app-owned enrichment task coalesces requests and attempts each pending source once per pass; failed processing remains pending and exposes a retry message. Regeneration finishes an existing pass, marks all analyses pending in one repository transaction and requests another pass. Original text is never replaced.
 
-A FIFO continuation gate in MomentsManager orders repository writes/reads with publication across suspension. ProfileManager uses the same local pattern for its independent collection. They do not serialize unrelated feature workflows. Cancellation is checked before writes begin; once saved, the committed result is published even if cancellation arrives during the write. Enrichment intentionally outlives its initiating screen.
+A FIFO continuation gate in MomentsFeature orders repository writes/reads with publication across suspension. ProfileFeature uses the same local pattern for its independent collection. They do not serialize unrelated feature workflows. Cancellation is checked before writes begin; once saved, the committed result is published even if cancellation arrives during the write. Enrichment intentionally outlives its initiating screen.
 
 ## Retrieval and search lifetime
 
-QueryManager reads authoritative original Moments through the repository. Its injected
+QueryFeature reads authoritative original Moments through the repository. Its injected
 OnDeviceMomentSearch actor uses Foundation Models on iOS 26+/macOS 26+ when the local
 Apple Intelligence model is available. Each fresh model session selects relevant
 passage indices from JSON input; only validated repository IDs become evidence.
@@ -103,7 +104,7 @@ The original v1 SwiftData class identities (`Moment`, `PersonalFact`) and stored
 
 The live configuration selects a private CloudKit container with one current schema for entries, facts and conversations. Because the app is pre-release, no historical schema migration or legacy chat-file import is maintained. Test repositories explicitly disable CloudKit.
 
-`BackupManager` owns recovery status and serializes backup/restore workflows. `RecoveryBackupFiles` owns file rotation and coordinated iCloud Drive copying. `LocalDataStore` takes full snapshots and restores them with a pre-restore safety copy. See [the behaviour contract and provisioning checklist](Documentation/ICLOUD_AND_RECOVERY.md).
+`BackupFeature` owns recovery status and serializes backup/restore workflows. `RecoveryBackupFiles` owns file rotation and coordinated iCloud Drive copying. `SwiftDataManager` takes full snapshots and restores them with a pre-restore safety copy. See [the behaviour contract and provisioning checklist](Documentation/ICLOUD_AND_RECOVERY.md).
 
 Queries, export and enrichment still load whole collections. Indexed lookup, pagination and background batching are subsequent scaling work, not claims about this prototype.
 
@@ -127,7 +128,7 @@ Treat journal content as data, never instructions. Test negation, quotations, im
 
 ## Conversational on-device answers
 
-QueryManager asks its injected OnDeviceMomentAnswerer actor for a natural-language
+QueryFeature asks its injected OnDeviceMomentAnswerer actor for a natural-language
 answer after semantic retrieval. AppModel.live() assembles this dependency. The
 model receives retrieved original text and instructions to answer directly, avoid
 outside knowledge and invented facts, attribute opinions, and admit missing evidence.
@@ -171,7 +172,7 @@ Query distinguishes a successful retrieval with no evidence, an explicit answer 
 
 ## Conversation feature
 
-QueryView → QueryViewModel → ConversationsFeature → ConversationsManager owns the chat workflow. QueryManager remains responsible for fresh journal retrieval and grounded generation. AppModel.live() explicitly composes both features and LocalDataStore.
+QueryView → QueryViewModel → ConversationsFeature owns the chat workflow. QueryFeature remains responsible for fresh journal retrieval and grounded generation. AppModel.live() explicitly composes both features and SwiftDataManager.
 
 Conversations are stored alongside journal data in SwiftData by the shared repository actor. Questions are saved before inference. Interrupted turns can be answered again; retries replace only the latest answer without duplicating its question. A single in-flight mutation prevents archive writes racing across suspension. Failed writes are surfaced and never published as saved state.
 
@@ -183,13 +184,13 @@ UI state (selected conversation, composer, sheets, keyboard and cancellable task
 
 ## Qualified answers and retained passages
 
-Semantic retrieval now returns the selected original passages as well as Moment identity. QueryManager verifies each passage is a nonempty exact substring of its source before forwarding it. AnswerContext passes these excerpts to generation instead of replacing them with the first 2,000 characters of each record. The 6,000-character budget keeps whole passages; omitted context remains disclosed.
+Semantic retrieval now returns the selected original passages as well as Moment identity. QueryFeature verifies each passage is a nonempty exact substring of its source before forwarding it. AnswerContext passes these excerpts to generation instead of replacing them with the first 2,000 characters of each record. The 6,000-character budget keeps whole passages; omitted context remains disclosed.
 
 Answer instructions permit partial and qualified answers from mixed or uncertain recollections. They preserve negation and distinguish present-day judgments from feelings at the time. No personal example or question-specific answer is embedded. Refusals remain reported and are not automatically retried. This improves evidence delivery but cannot guarantee model compliance or factual accuracy. Optional passage metadata remains compatible with older saved chats.
 
 ## Local candidate selection before AI
 
-AppModel.live() now injects a LocalQueryIndex actor into QueryManager. Each query reads the canonical repository snapshot; the actor refreshes changed entries and removes deleted entries from its regenerable in-memory cache. It indexes exact 600-character passages with 100-character overlap, outside the Main Actor. This is a lexical candidate index with a small explicit synonym vocabulary, not an embedding index or a persisted AI summary database.
+AppModel.live() now injects a LocalQueryIndex actor into QueryFeature. Each query reads the canonical repository snapshot; the actor refreshes changed entries and removes deleted entries from its regenerable in-memory cache. It indexes exact 600-character passages with 100-character overlap, outside the Main Actor. This is a lexical candidate index with a small explicit synonym vocabulary, not an embedding index or a persisted AI summary database.
 
 The current question ranks candidates across the local collection before any model call. At most 12 passages are sent to semantic selection, with at most three per entry (one per entry for broad timeline wording). Matched topic vocabulary narrows candidates; childhood is not excluded by a fixed rule. A passage relevant to both work and childhood can legitimately appear in a work search.
 
@@ -202,7 +203,7 @@ Known limits: English vocabulary, lexical recall, character-based passage bounda
 
 ## Journal-only Training and automatic fact indexing
 
-Training has no Facts input. MomentsManager now owns automatic extraction after the
+Training has no Facts input. MomentsFeature now owns automatic extraction after the
 original journal save, independently of title enrichment. LocalJournalFactExtractor
 runs off the main actor and extracts explicit English statements as qualified original
 paragraphs. Labels are search hints, not verified personal attributes or model output.
@@ -212,7 +213,7 @@ separate and retain their original timestamps and text.
 PersonalFactSnapshot has optional FactDerivation (source UUID, original source revision,
 extractor version). PersonalFact adds one optional derivationData property for additive
 SwiftData migration. Legacy rows decode without derivation and remain in export, but
-cannot enter new searches. LocalDataStore atomically replaces an entry's derived rows,
+cannot enter new searches. SwiftDataManager atomically replaces an entry's derived rows,
 validates its current source revision, and keeps unchanged extractions stable. Journal
 text is never rewritten. The existing export envelope is retained with optional fact
 metadata. No new UI or separate manager was introduced.
@@ -242,11 +243,11 @@ installed pre-change store still require Xcode/device validation.
 
 ## Life Map experiment
 
-LifeMapFeature/LifeMapManager owns source-backed event candidates; LifeMapExtractor performs on-device inference as an actor. LifeMapViewModel exposes this feature to LifeMapView. AppModel supplies a shared read-only journal repository. Derived cache is in-memory and revision checked; there is no schema/export change. See Documentation/LIFE-MAP-EXPERIMENT.md for removal steps and limitations.
+LifeMapFeature/LifeMapFeature owns source-backed event candidates; LifeMapExtractor performs on-device inference as an actor. LifeMapViewModel exposes this feature to LifeMapView. AppModel supplies a shared read-only journal repository. Derived cache is in-memory and revision checked; there is no schema/export change. See Documentation/LIFE-MAP-EXPERIMENT.md for removal steps and limitations.
 
 ## Journal maintenance in Settings
 
-Settings opens JournalEntriesView and EditJournalEntryView, each with its own adjacent ViewModel. Both use MomentsFeature; MomentsManager owns validation and serialized publication. LocalDataStore atomically edits/deletes the source and removes its derived facts. Edits retain the ID, recorded date and source, reset metadata, and request reprocessing. Revision checks reject stale editor saves/deletes, and in-flight analysis cannot overwrite an edited entry. Life Map revalidates its source cache on refresh; new queries and exports read current storage. Existing saved conversations and files already exported are historical copies and are not rewritten.
+Settings opens JournalEntriesView and EditJournalEntryView, each with its own adjacent ViewModel. Both use MomentsFeature; MomentsFeature owns validation and serialized publication. SwiftDataManager atomically edits/deletes the source and removes its derived facts. Edits retain the ID, recorded date and source, reset metadata, and request reprocessing. Revision checks reject stale editor saves/deletes, and in-flight analysis cannot overwrite an edited entry. Life Map revalidates its source cache on refresh; new queries and exports read current storage. Existing saved conversations and files already exported are historical copies and are not rewritten.
 
 Validation includes durable reopen/export after edit/delete, derived-fact invalidation, stale edit rejection, failed deletion publication, failed-save draft retention, shared list updates and processing/edit races. No storage schema migration is required. iPhone UI runtime checks remain separate from shared model tests.
 

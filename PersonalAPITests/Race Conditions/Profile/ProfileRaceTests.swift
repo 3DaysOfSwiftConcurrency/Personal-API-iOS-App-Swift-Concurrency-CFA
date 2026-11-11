@@ -5,7 +5,7 @@ import XCTest
 @MainActor final class ProfileRaceTests: XCTestCase {
   func testConcurrentWritesAndRefreshPreserveBothFacts() async throws {
     let repository = MemoryRepository()
-    let manager = ProfileManager(repository: repository, now: { Date() })
+    let manager = ProfileFeature(repository: repository, now: { Date() })
     async let first: Void = manager.addFact(label: "First", value: "One")
     async let second: Void = manager.addFact(label: "Second", value: "Two")
     async let refresh: Void = manager.refresh()
@@ -22,7 +22,7 @@ extension ProfileRaceTests {
     let barrier = RaceBarrier(entered)
     defer { Task { await barrier.release() } }
     let repository = PausedRepository(.factWrite, barrier: barrier)
-    let manager = ProfileManager(repository: repository, now: { Date() })
+    let manager = ProfileFeature(repository: repository, now: { Date() })
     let first = Task { try await manager.addFact(label: "First", value: "One") }
     await fulfillment(of: [entered], timeout: 2)
     let queued = expectation(description: "Second operation submitted")

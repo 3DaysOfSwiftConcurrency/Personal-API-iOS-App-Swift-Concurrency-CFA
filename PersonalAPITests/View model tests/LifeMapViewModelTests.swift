@@ -13,7 +13,7 @@ private actor ViewMapExtractor: LifeMapExtracting {
     let store = MemoryRepository()
     try await store.saveMoment(raceMoment("I moved."))
     let vm = LifeMapViewModel(
-      feature: LifeMapManager(repository: store, extractor: ViewMapExtractor()))
+      lifeMapFeature: LifeMapFeature(repository: store, extractor: ViewMapExtractor()))
     await vm.refresh()
     XCTAssertEqual(vm.points.first?.passage, "I moved.")
     XCTAssertEqual(vm.entryCount, 1)
@@ -28,7 +28,7 @@ private actor ViewMapExtractor: LifeMapExtracting {
     let original = raceMoment("Failure")
     try await store.saveMoment(original)
     let vm = LifeMapViewModel(
-      feature: LifeMapManager(repository: store, extractor: ViewMapExtractor()))
+      lifeMapFeature: LifeMapFeature(repository: store, extractor: ViewMapExtractor()))
     await vm.refresh()
     XCTAssertEqual(vm.failedCount, 1)
     XCTAssertNotNil(vm.issue)

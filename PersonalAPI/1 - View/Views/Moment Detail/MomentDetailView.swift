@@ -3,7 +3,7 @@ import SwiftUI
 struct MomentDetailView: View {
   let moment: MomentSnapshot
   @State private var viewModel = MomentDetailViewModel()
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   var body: some View {
     let displayed = viewModel.current(moment)
     ScrollView {

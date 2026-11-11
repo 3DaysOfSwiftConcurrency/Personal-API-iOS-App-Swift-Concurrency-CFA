@@ -3,35 +3,56 @@ import Observation
 
 @MainActor @Observable final class SettingsViewModel {
   var exporting = false
-  func requestExport() { Task { exporting = await prepareExport() } }
-  private let settings: any SettingsFeature
-  private let authentication: any AuthenticationFeature
+  private var exportTask: Task<Void, Never>?
+  private var lockTask: Task<Void, Never>?
+  private var regenerateTask: Task<Void, Never>?
+  @discardableResult
+  func requestExport() -> Task<Void, Never> {
+    if let exportTask { return exportTask }
+    let task = Task { [self] in
+      defer { exportTask = nil }
+      exporting = await prepareExport()
+    }
+    exportTask = task
+    return task
+  }
+  private let settingsFeature: SettingsFeature
+  private let authenticationFeature: AuthenticationFeature
   private(set) var isWorking = false
   private(set) var message: String?
   private(set) var filename = ExportDocument.datasetFilename()
   private(set) var document: ExportDocument?
   init(
-    settings: any SettingsFeature = AppModel.shared.settingsFeature,
-    authentication: any AuthenticationFeature = AppModel.shared.authenticationFeature
+    settingsFeature: SettingsFeature = AppModel.shared.settingsFeature,
+    authenticationFeature: AuthenticationFeature = AppModel.shared.authenticationFeature
   ) {
-    self.settings = settings
-    self.authentication = authentication
+    self.settingsFeature = settingsFeature
+    self.authenticationFeature = authenticationFeature
   }
-  var lockEnabled: Bool { authentication.enabled }
-  var authenticating: Bool { authentication.authenticating }
-  var authenticationError: String? { authentication.error }
-  var enrichmentError: String? { settings.enrichmentError }
-  var momentCount: Int { settings.momentCount }
-  var factCount: Int { settings.factCount }
-  func requestLockEnabled(_ value: Bool) { Task { await setLockEnabled(value) } }
-  func setLockEnabled(_ enabled: Bool) async { await authentication.setEnabled(enabled) }
+  var lockEnabled: Bool { authenticationFeature.enabled }
+  var authenticating: Bool { authenticationFeature.authenticating }
+  var authenticationError: String? { authenticationFeature.error }
+  var enrichmentError: String? { settingsFeature.enrichmentError }
+  var momentCount: Int { settingsFeature.momentCount }
+  var factCount: Int { settingsFeature.factCount }
+  @discardableResult
+  func requestLockEnabled(_ value: Bool) -> Task<Void, Never> {
+    if let lockTask { return lockTask }
+    let task = Task { [self] in
+      defer { lockTask = nil }
+      await setLockEnabled(value)
+    }
+    lockTask = task
+    return task
+  }
+  func setLockEnabled(_ enabled: Bool) async { await authenticationFeature.setEnabled(enabled) }
   func prepareExport() async -> Bool {
     guard !isWorking else { return false }
     isWorking = true
     defer { isWorking = false }
     do {
       filename = ExportDocument.datasetFilename()
-      document = ExportDocument(data: try await settings.exportDataset())
+      document = ExportDocument(data: try await settingsFeature.exportDataset())
       message = nil
       return true
     } catch {
@@ -52,9 +73,18 @@ import Observation
     isWorking = true
     defer { isWorking = false }
     do {
-      try await settings.regenerateMetadata()
-      message = settings.enrichmentError ?? "Derived metadata regenerated."
+      try await settingsFeature.regenerateMetadata()
+      message = settingsFeature.enrichmentError ?? "Derived metadata regenerated."
     } catch { message = error.localizedDescription }
   }
-  func requestRegenerate() { Task { await regenerate() } }
+  @discardableResult
+  func requestRegenerate() -> Task<Void, Never> {
+    if let regenerateTask { return regenerateTask }
+    let task = Task { [self] in
+      defer { regenerateTask = nil }
+      await regenerate()
+    }
+    regenerateTask = task
+    return task
+  }
 }

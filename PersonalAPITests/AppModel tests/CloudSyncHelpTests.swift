@@ -83,9 +83,9 @@ import XCTest
     XCTAssertNil(manager.accountStatus)
   }
 
-  private func makeManager(account: any CloudAccountChecking = CloudAccountStub()) -> BackupManager
+  private func makeManager(account: any CloudAccountChecking = CloudAccountStub()) -> BackupFeature
   {
-    BackupManager(
+    BackupFeature(
       repository: RecoveryRepositoryStub(), files: RecoveryFilesStub(), account: account,
       preferences: MemoryPreferences(), now: { Date() }, canRestore: { true }, reload: {})
   }

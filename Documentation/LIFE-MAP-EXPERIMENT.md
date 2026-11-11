@@ -2,8 +2,8 @@
 
 ## Ownership and removal
 
-LifeMapView -> LifeMapViewModel -> LifeMapFeature -> LifeMapManager.
-The manager reads PersonalDataRepository and delegates inference to the LifeMapExtractor actor. AppModel.live constructs these dependencies; tests inject an extractor. The View only lays out results and selects source detail.
+LifeMapView -> LifeMapViewModel -> LifeMapFeature.
+The Feature reads PersonalDataRepository and delegates inference to the LifeMapExtractor actor. AppModel.live constructs these dependencies; tests inject an extractor. The View only lays out results and selects source detail.
 
 Before: Root tabs Training, Personal API, Export, Settings; no event segmentation.
 After: Life Map tab reads journal entries and extracts several event candidates per entry. No changes to journal persistence, query rules, or JSON exports. Derived results are cached in manager memory against exact source revisions.

@@ -1,6 +1,6 @@
 import Foundation
 
-actor QueryWorker {
+actor QueryWorker: QuerySearching {
   private let index: LocalQueryIndex
   private let repository: any PersonalDataRepository
   private let answerer: (any MomentAnswering)?

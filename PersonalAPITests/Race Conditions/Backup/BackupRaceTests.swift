@@ -6,7 +6,7 @@ import XCTest
   func testRestoreWaitsForBackupSuspensionToFinish() async {
     let repository = RecoveryRepositoryStub()
     let files = RecoveryFilesStub()
-    let manager = BackupManager(
+    let manager = BackupFeature(
       repository: repository, files: files, account: CloudAccountStub(), preferences: MemoryPreferences(),
       now: { Date() }, canRestore: { true }, reload: {})
     await manager.inspect(URL(fileURLWithPath: "/preview"))
@@ -27,7 +27,7 @@ import XCTest
   func testCancelledQueuedRestoreDoesNotMutateData() async {
     let repository = RecoveryRepositoryStub()
     let files = RecoveryFilesStub()
-    let manager = BackupManager(
+    let manager = BackupFeature(
       repository: repository, files: files, account: CloudAccountStub(), preferences: MemoryPreferences(),
       now: { Date() }, canRestore: { true }, reload: {})
     await manager.inspect(URL(fileURLWithPath: "/preview"))

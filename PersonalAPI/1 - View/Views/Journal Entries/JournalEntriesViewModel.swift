@@ -2,11 +2,21 @@ import Foundation
 import Observation
 
 @MainActor @Observable final class JournalEntriesViewModel {
-  private let moments: any MomentsFeature
-  init(moments: any MomentsFeature = AppModel.shared.momentsFeature) { self.moments = moments }
-  var entries: [MomentSnapshot] { moments.moments }
-  var isLoading: Bool { moments.isLoading }
-  var error: String? { moments.loadError }
-  func refresh() async { await moments.refresh() }
-  func requestRefresh() { Task { await refresh() } }
+  private let momentsFeature: MomentsFeature
+  init(momentsFeature: MomentsFeature = AppModel.shared.momentsFeature) { self.momentsFeature = momentsFeature }
+  var entries: [MomentSnapshot] { momentsFeature.moments }
+  var isLoading: Bool { momentsFeature.isLoading }
+  var error: String? { momentsFeature.loadError }
+  private var refreshTask: Task<Void, Never>?
+  func refresh() async { await momentsFeature.refresh() }
+  @discardableResult
+  func requestRefresh() -> Task<Void, Never> {
+    if let refreshTask { return refreshTask }
+    let task = Task { [self] in
+      defer { refreshTask = nil }
+      await refresh()
+    }
+    refreshTask = task
+    return task
+  }
 }

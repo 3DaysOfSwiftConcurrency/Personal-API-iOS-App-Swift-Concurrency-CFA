@@ -50,7 +50,7 @@ actor RecoveryBackupFiles: RecoveryFiles {
       try RecoverySnapshot.decode(Data(contentsOf: $0)).createdAt
     }.max()
     let bytes = try snapshot.encoded()
-    if lastWeekly == nil || snapshot.createdAt.timeIntervalSince(lastWeekly!) >= weeklyInterval {
+    if lastWeekly.map({ snapshot.createdAt.timeIntervalSince($0) >= weeklyInterval }) ?? true {
       try bytes.write(
         to: weekly.appendingPathComponent("\(UUID().uuidString).json"), options: .atomic)
     }

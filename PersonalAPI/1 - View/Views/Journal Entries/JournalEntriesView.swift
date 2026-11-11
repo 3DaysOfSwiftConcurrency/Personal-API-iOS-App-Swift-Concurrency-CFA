@@ -2,7 +2,7 @@ import SwiftUI
 
 struct JournalEntriesView: View {
   @State private var viewModel = JournalEntriesViewModel()
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   var body: some View {
     List {
       Group {

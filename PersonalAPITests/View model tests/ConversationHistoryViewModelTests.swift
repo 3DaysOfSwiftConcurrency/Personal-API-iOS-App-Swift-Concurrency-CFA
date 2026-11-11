@@ -5,11 +5,11 @@ import XCTest
 
 @MainActor final class ConversationHistoryViewModelTests: XCTestCase {
   func testLoadDisplaysSavedHistory() async throws {
-    let chats = ConversationsManager(
-      repository: MemoryConversationRepository(), query: ConversationQueryStub(), now: { Date() })
+    let chats = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     let id = UUID()
     try await chats.send("Question", in: id)
-    let vm = ConversationHistoryViewModel(chats: chats)
+    let vm = ConversationHistoryViewModel(conversationsFeature: chats)
     await vm.load()
     XCTAssertEqual(vm.conversations.first?.id, id)
     XCTAssertFalse(vm.isBusy)
@@ -17,9 +17,9 @@ import XCTest
   }
   func testFailedLoadCanRetry() async {
     let store = MemoryConversationRepository()
-    let chats = ConversationsManager(
-      repository: store, query: ConversationQueryStub(), now: { Date() })
-    let vm = ConversationHistoryViewModel(chats: chats)
+    let chats = ConversationsFeature(
+      repository: store, queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
+    let vm = ConversationHistoryViewModel(conversationsFeature: chats)
     await store.setFailure(true)
     await vm.load()
     XCTAssertNotNil(vm.error)
@@ -31,11 +31,11 @@ import XCTest
 
 extension ConversationHistoryViewModelTests {
   func testDeleteIntentRemovesSelectionAndConversation() async throws {
-    let chats = ConversationsManager(
-      repository: MemoryConversationRepository(), query: ConversationQueryStub(), now: { Date() })
+    let chats = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     let id = UUID()
     try await chats.send("Question", in: id)
-    let vm = ConversationHistoryViewModel(chats: chats)
+    let vm = ConversationHistoryViewModel(conversationsFeature: chats)
     let changed = expectation(description: "History updated")
     withObservationTracking {
       _ = vm.conversations
@@ -51,11 +51,11 @@ extension ConversationHistoryViewModelTests {
   }
   func testFailedDeletionPreservesConversationAndReportsError() async throws {
     let store = MemoryConversationRepository()
-    let chats = ConversationsManager(
-      repository: store, query: ConversationQueryStub(), now: { Date() })
+    let chats = ConversationsFeature(
+      repository: store, queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     let id = UUID()
     try await chats.send("Question", in: id)
-    let vm = ConversationHistoryViewModel(chats: chats)
+    let vm = ConversationHistoryViewModel(conversationsFeature: chats)
     await store.setFailure(true)
     let failed = expectation(description: "Deletion error")
     withObservationTracking {

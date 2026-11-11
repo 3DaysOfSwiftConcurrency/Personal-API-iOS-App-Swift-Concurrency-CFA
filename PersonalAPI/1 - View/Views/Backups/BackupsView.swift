@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 struct BackupsView: View {
   @State private var viewModel = BackupsViewModel()
   @Environment(\.scenePhase) private var scenePhase
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   var body: some View {
     @Bindable var viewModel = viewModel
     Form {

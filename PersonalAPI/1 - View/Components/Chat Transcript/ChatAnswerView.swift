@@ -10,7 +10,7 @@ struct ChatAnswerView: View {
   let logMoment: () -> Void
   let markUseful: () -> Void
   let showFeedback: () -> Void
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   var body: some View {
     VStack(alignment: .leading, spacing: 24) {
       Label("Personal API", systemImage: "sparkles").font(.headline)

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct LockView: View {
   @State private var viewModel = LockViewModel()
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   var body: some View {
     VStack(spacing: 24) {
       Image(systemName: "lock.fill").font(.largeTitle)

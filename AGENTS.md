@@ -1,17 +1,15 @@
 # Personal API architecture
 
-Use Matthew’s AppModel architecture. Read Documentation/APPMODEL_IOS_APPLICATION_TEMPLATE.md completely before architecture changes; ARCHITECTURE.md maps it onto this project.
+CFA workflow: established-product maintenance.
 
-Canonical reference confirmed by Matthew: /Users/matthewthomas/Documents/Codex/2026-09-03/i-x20/outputs/Trend
+Read `Documentation/APPMODEL_IOS_APPLICATION_TEMPLATE.md` completely before architecture changes. `ARCHITECTURE.md` maps those rules onto this product.
 
-Reusable skills now live in ../cooperative-feature-architecture/skills. For feature
-work, use cfa-architecture-adoption without expanding scope to whole-app adoption.
-The former Trend skill folders have been extracted. cfa-architecture-review provides
-the read-only review workflow when requested. Do not infer scores from folder names
-or a successful build.
+Preserve the numbered Xcode groups, one adjacent ViewModel per screen, concrete `@MainActor @Observable` Features, `AppModel.live()` composition, actor-owned external resources, and injectable worker/repository boundaries. Views remain declarative. ViewModels own presentation state and retained UI task handles, but no reusable business rules or persistence.
 
-Preserve numbered Xcode groups, one adjacent ViewModel per screen, narrow feature APIs, AppModel.live() composition, repository-owned SwiftData and injectable dependencies. No business rules or persistence in Views/ViewModels. Preserve canonical original text and the PRODUCT.md principles.
+Each top-level tab owns a distinct Feature. `AppModel` is the only live composition root and stores concrete Features, never feature protocols. Cross-feature workflows belong to their owning Feature and must await the actual operation before reporting success.
 
-Keep the local template snapshot aligned with intentional updates to the confirmed Trend reference. App bundle identifier remains com.3DaysOfSwiftConcurrency.PersonalAPI.
+`SwiftDataManager` owns the one lazily opened `ModelContainer`. `SwiftDataRepository` is the `@ModelActor` implementation created from that container. Do not construct containers or contexts in Views, ViewModels, Features, or workers.
 
-Validate with the iPhone Xcode test target when Simulator access is available. Package.swift runs the same shared Model/ViewModel tests on macOS without iPhone Views; always distinguish that evidence from iPhone runtime validation.
+Preserve original journal text and the principles in `PRODUCT.md`. The app bundle identifier remains `com.3DaysOfSwiftConcurrency.PersonalAPI`.
+
+Validate with the iPhone Xcode test target when Simulator access is available. `Package.swift` runs the shared Model/ViewModel tests on macOS without iPhone Views. Always distinguish package-test evidence from an iPhone runtime build.

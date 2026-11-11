@@ -2,7 +2,7 @@ import XCTest
 
 @testable import PersonalAPI
 
-@MainActor final class AuthenticationManagerTests: XCTestCase {
+@MainActor final class AuthenticationFeatureTests: XCTestCase {
   func testLateSuccessAfterBackgroundCannotUnlock() async {
     let graph = TestAppModelFactory()
     graph.preferences.lockEnabled = true
@@ -27,7 +27,7 @@ import XCTest
   }
 }
 
-extension AuthenticationManagerTests {
+extension AuthenticationFeatureTests {
   func testSuccessfulEnableAndDisablePersistAndClearFailure() async {
     let graph = TestAppModelFactory()
     graph.authentication.success = false
@@ -48,11 +48,11 @@ extension AuthenticationManagerTests {
   func authenticate() async throws -> Bool { throw TestFailure.unavailable }
   func cancel() {}
 }
-extension AuthenticationManagerTests {
+extension AuthenticationFeatureTests {
   func testProviderErrorLeavesPreferencesAndLockStateUnchanged() async {
     let preferences = MemoryPreferences()
     preferences.lockEnabled = true
-    let manager = AuthenticationManager(client: ThrowingAuthentication(), preferences: preferences)
+    let manager = AuthenticationFeature(client: ThrowingAuthentication(), preferences: preferences)
     manager.loadPreference()
     await manager.setEnabled(false)
     XCTAssertTrue(manager.enabled)

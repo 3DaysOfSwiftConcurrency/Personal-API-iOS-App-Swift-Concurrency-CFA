@@ -58,7 +58,7 @@ This is an environment access failure, not an observed refusal or incorrect mode
 1. Select the **PersonalAPI Live AI Checks** scheme.
 2. Select your existing iPhone Air simulator (or eligible physical iPhone).
 3. Press **⌘U**.
-4. Inspect QueryManagerTests in the Test or Report navigator.
+4. Inspect QueryFeatureTests in the Test or Report navigator.
 
 The dedicated scheme enables two live tests using an in-memory synthetic job entry:
 - Direct generation: skips retrieval, checks an answer exists and addresses you; basic content assertions are smoke checks, not a complete factuality evaluation.

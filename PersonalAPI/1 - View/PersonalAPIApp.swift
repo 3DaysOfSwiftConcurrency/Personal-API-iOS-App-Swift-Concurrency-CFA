@@ -1,36 +1,42 @@
 import SwiftUI
 
 @MainActor final class ApplicationDelegate: NSObject, UIApplicationDelegate {
+  private var launchTask: Task<Void, Never>?
+  private var activeTask: Task<Void, Never>?
+
   func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
-    #if DEBUG
-      if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
-        return true
-      }
-    #endif
-    AppModel.shared.applicationDidFinishLaunching()
+    guard launchTask == nil else { return true }
+    launchTask = Task { [weak self] in
+      await AppModel.shared.applicationDidFinishLaunching()
+      self?.launchTask = nil
+    }
     return true
+  }
+
+  func applicationDidBecomeActive(_ application: UIApplication) {
+    guard activeTask == nil else { return }
+    activeTask = Task { [weak self] in
+      await AppModel.shared.applicationDidBecomeActive()
+      self?.activeTask = nil
+    }
+  }
+
+  func applicationDidEnterBackground(_ application: UIApplication) {
+    activeTask?.cancel()
+    activeTask = nil
+    AppModel.shared.applicationDidEnterBackground()
   }
 }
 
 @main struct PersonalAPIApp: App {
   @UIApplicationDelegateAdaptor(ApplicationDelegate.self) private var delegate
-  @State private var theme = ThemeManager(preferences: LocalPreferences(defaults: .standard))
+  @State private var theme = ThemeStore(preferences: LocalPreferences(defaults: .standard))
   var body: some Scene {
     WindowGroup {
-      Group {
-        #if DEBUG
-          if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
-            RootView()
-          } else {
-            Color.clear
-          }
-        #else
-          RootView()
-        #endif
-      }
+      RootView()
       .environment(theme)
       .buttonStyle(PersonalAPIButtonStyle())
       .preferredColorScheme(.dark)

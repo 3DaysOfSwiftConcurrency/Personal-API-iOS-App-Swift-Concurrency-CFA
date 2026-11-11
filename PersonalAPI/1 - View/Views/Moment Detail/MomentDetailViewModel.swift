@@ -2,11 +2,11 @@ import Foundation
 import Observation
 
 @MainActor @Observable final class MomentDetailViewModel {
-  private let moments: any MomentsFeature
-  init(moments: any MomentsFeature = AppModel.shared.momentsFeature) { self.moments = moments }
-  func load() async { await moments.loadIfRequired() }
+  private let momentsFeature: MomentsFeature
+  init(momentsFeature: MomentsFeature = AppModel.shared.momentsFeature) { self.momentsFeature = momentsFeature }
+  func load() async { await momentsFeature.loadIfRequired() }
   func sourceNotice(for snapshot: MomentSnapshot) -> String? {
-    switch moments.sourceState(for: snapshot) {
+    switch momentsFeature.sourceState(for: snapshot) {
     case .unavailable, .current: return nil
     case .edited:
       return "This entry has since been edited. These are the words saved with this source."
@@ -16,6 +16,6 @@ import Observation
     }
   }
   func current(_ snapshot: MomentSnapshot) -> MomentSnapshot {
-    moments.currentMoment(snapshot)
+    momentsFeature.currentMoment(snapshot)
   }
 }

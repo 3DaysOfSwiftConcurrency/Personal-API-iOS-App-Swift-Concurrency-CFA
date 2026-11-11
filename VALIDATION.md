@@ -1,3 +1,15 @@
+# CFA conformance migration — 11 November 2026
+
+- Replaced mirrored Feature protocols and `*Manager` concrete types with concrete `@MainActor @Observable` Features.
+- Added a distinct Export Feature, retained task ownership, single-flight shared operations and failure-propagating recovery reloads.
+- Introduced one lazy `SwiftDataManager` resource owner and an `@ModelActor` `SwiftDataRepository`, including directory preparation and failed-open retry coverage.
+- Xcode project plist validates. All 75 app Swift files and 38 test Swift files are present exactly once.
+- Strict-concurrency iOS source typecheck passed.
+- Shared suite: 166 tests executed, four opt-in live-AI checks skipped, zero failures.
+- Generic Simulator build reached compilation setup but stopped at asset catalog compilation because CoreSimulator exposed no installed runtime. Device UI, live iCloud, real authentication and live-model checks remain release validation work.
+
+---
+
 # SwiftUI chat scrolling — 16 September 2026
 
 Removed ChatScrollView, ChatDraftBounds, and their Xcode references. Query now uses SwiftUI ScrollView/ScrollViewReader with native keyboard safe-area handling, interactive dismissal, bottom anchoring and a bottom target including 20 points of padding. A viewport-height change scrolls the focused composer into view. The shared UITextView adapter remains, with the same touch-delay configuration as Training.
@@ -174,7 +186,7 @@ User confirmed the app runs after the launch repair, but supplied repeated Attri
 - V1 unversioned store migration exercised using a disk-backed fixture; real installed-device upgrade remains pending.
 - Cloud copy policy tested with local-file adapter; actual coordinated cloud I/O remains a device check.
 - See Documentation/ICLOUD_AND_RECOVERY.md for the behaviour contract and release checklist.
-- Corrected a pre-existing ThemeManager setter typo (`theme.id` → `palette.id`) that prevented the initial shared-suite baseline compiling.
+- Corrected a pre-existing ThemeStore setter typo (`theme.id` → `palette.id`) that prevented the initial shared-suite baseline compiling.
 
 ## Pre-release simplification
 

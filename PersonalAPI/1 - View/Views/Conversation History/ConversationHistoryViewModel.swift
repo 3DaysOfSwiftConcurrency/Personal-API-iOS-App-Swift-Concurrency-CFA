@@ -2,28 +2,34 @@ import Foundation
 import Observation
 
 @MainActor @Observable final class ConversationHistoryViewModel {
-  private let chats: any ConversationsFeature
+  private let conversationsFeature: ConversationsFeature
   var pendingDeletion: UUID?
   private(set) var error: String?
-  init(chats: any ConversationsFeature = AppModel.shared.conversationsFeature) {
-    self.chats = chats
+  private var deleteTask: Task<Void, Never>?
+  init(conversationsFeature: ConversationsFeature = AppModel.shared.conversationsFeature) {
+    self.conversationsFeature = conversationsFeature
   }
-  var conversations: [Conversation] { chats.conversations }
-  var isBusy: Bool { chats.isBusy }
+  var conversations: [Conversation] { conversationsFeature.conversations }
+  var isBusy: Bool { conversationsFeature.isBusy }
   func load() async {
     do {
-      try await chats.load()
+      try await conversationsFeature.load()
       error = nil
     } catch { self.error = error.localizedDescription }
   }
-  func deletePending() {
-    guard let id = pendingDeletion else { return }
+  @discardableResult
+  func deletePending() -> Task<Void, Never>? {
+    guard let id = pendingDeletion else { return nil }
+    if let deleteTask { return deleteTask }
     pendingDeletion = nil
-    Task {
+    let task = Task { [self] in
+      defer { deleteTask = nil }
       do {
-        try await chats.delete(id)
+        try await conversationsFeature.delete(id)
         error = nil
       } catch { self.error = error.localizedDescription }
     }
+    deleteTask = task
+    return task
   }
 }

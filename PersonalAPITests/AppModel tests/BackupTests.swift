@@ -85,7 +85,7 @@ final class BackupTests: XCTestCase {
   func testStaleChatSaveRejectedAndUnseenChatPreserved() async throws {
     let folder = try folder()
     defer { try? FileManager.default.removeItem(at: folder) }
-    let store = LocalDataStore(storeURL: folder.appendingPathComponent("test.store"))
+    let store = SwiftDataManager(storeURL: folder.appendingPathComponent("test.store"))
     let chat = Conversation(id: UUID(), createdAt: Date(), updatedAt: Date(), turns: [])
     try await store.save([chat], replacing: [])
     let other = Conversation(id: UUID(), createdAt: Date(), updatedAt: Date(), turns: [])
@@ -103,7 +103,7 @@ final class BackupTests: XCTestCase {
   func testRestoreSafetyCopyAndInvalidRestoreLeavesStoreUntouched() async throws {
     let folder = try folder()
     defer { try? FileManager.default.removeItem(at: folder) }
-    let store = LocalDataStore(storeURL: folder.appendingPathComponent("test.store"))
+    let store = SwiftDataManager(storeURL: folder.appendingPathComponent("test.store"))
     let original = snapshot("original")
     try await store.saveMoment(original.moments[0])
     let safety = folder.appendingPathComponent("Before-restore")
@@ -127,7 +127,7 @@ final class BackupTests: XCTestCase {
   func testSafetyWriteFailurePreventsRestore() async throws {
     let folder = try folder()
     defer { try? FileManager.default.removeItem(at: folder) }
-    let store = LocalDataStore(storeURL: folder.appendingPathComponent("test.store"))
+    let store = SwiftDataManager(storeURL: folder.appendingPathComponent("test.store"))
     try await store.saveMoment(snapshot("original").moments[0])
     let blocked = folder.appendingPathComponent("file")
     try Data().write(to: blocked)
@@ -167,7 +167,7 @@ extension BackupTests {
   func testLateAnalysisCannotOverwriteEditedSourceThroughProtocol() async throws {
     let folder = try folder()
     defer { try? FileManager.default.removeItem(at: folder) }
-    let store: any PersonalDataRepository = LocalDataStore(
+    let store: any PersonalDataRepository = SwiftDataManager(
       storeURL: folder.appendingPathComponent("test.store"))
     let source = snapshot("old text").moments[0]
     try await store.saveMoment(source)

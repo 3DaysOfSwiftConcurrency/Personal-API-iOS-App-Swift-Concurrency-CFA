@@ -109,21 +109,22 @@ actor FailingProcessor: MomentProcessor {
   let app: AppModel
   init(processor: (any MomentProcessor)? = nil) {
     let now: @Sendable () -> Date = { Date(timeIntervalSince1970: 1_000) }
-    let moments = MomentsManager(
+    let moments = MomentsFeature(
       repository: repository, processor: processor ?? LocalMomentProcessor(now: now), now: now)
-    let profile = ProfileManager(repository: repository, now: now)
-    let query = QueryManager(
+    let profile = ProfileFeature(repository: repository, now: now)
+    let query = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex())
     app = AppModel(
-      moments: moments, profile: profile,
-      query: query,
-      authentication: AuthenticationManager(client: authentication, preferences: preferences),
-      settings: SettingsManager(
-        preferences: preferences, repository: repository, moments: moments, profile: profile),
-      conversations: ConversationsManager(
-        repository: MemoryConversationRepository(), query: query, now: now),
-      lifeMap: LifeMapManager(repository: repository, extractor: LifeMapExtractor()),
-      backup: BackupStub())
+      momentsFeature: moments, profileFeature: profile,
+      queryFeature: query,
+      authenticationFeature: AuthenticationFeature(client: authentication, preferences: preferences),
+      settingsFeature: SettingsFeature(
+        preferences: preferences, repository: repository, momentsFeature: moments, profileFeature: profile),
+      conversationsFeature: ConversationsFeature(
+        repository: MemoryConversationRepository(), queryFeature: query, now: now),
+      lifeMapFeature: LifeMapFeature(repository: repository, extractor: LifeMapExtractor()),
+      backupFeature: makeBackupFeature(),
+      exportFeature: ExportFeature(repository: repository, momentsFeature: moments))
   }
 }
 
@@ -144,34 +145,69 @@ actor MemoryConversationRepository: ConversationRepository {
   }
 }
 
-@MainActor final class BackupStub: BackupFeature {
-  var errorContext: RecoveryFailureContext?
-  var syncIssue: CloudSyncIssue?
-  var accountStatus: String?
-  var isCheckingAccount = false
-  var checks = 0
-  func checkSyncAvailability() async { checks += 1 }
-  var isRestoring = false
-  var localCopies: [RecoveryCopy] = []
-  func loadLocalCopies() async {}
-  var isWorking = false
-  var lastBackup: Date?
-  var status = "Ready"
-  var syncStatus = "Ready"
-  var error: String?
-  var preview: RecoverySnapshot?
-  var requests: [Bool] = []
-  var restored = false
-  var inspected: URL?
-  func observeChanges() {}
-  func backup(force: Bool) async { requests.append(force) }
-  func inspect(_ url: URL) async { inspected = url }
-  func restorePreview() async { restored = true }
-  func discardPreview() { preview = nil }
+@MainActor func makeBackupFeature(
+  repository: ViewRecoveryRepositoryStub = ViewRecoveryRepositoryStub(),
+  files: ViewRecoveryFilesStub = ViewRecoveryFilesStub(),
+  account: CloudAccountStub = CloudAccountStub(),
+  reload: @escaping @MainActor () async throws -> Void = {}
+) -> BackupFeature {
+  BackupFeature(
+    repository: repository, files: files, account: account,
+    preferences: MemoryPreferences(), now: { Date(timeIntervalSince1970: 100) },
+    canRestore: { true }, reload: reload)
+}
+
+actor ViewRecoveryRepositoryStub: RecoveryRepository {
+  private(set) var restores = 0
+  func changes() -> AsyncStream<Void> { AsyncStream { $0.finish() } }
+  func recoverySnapshot(at date: Date, themeID: String?) -> RecoverySnapshot {
+    RecoverySnapshot(
+      createdAt: date, moments: [], facts: [], conversations: [], colourThemeID: themeID)
+  }
+  func restore(
+    _ snapshot: RecoverySnapshot, safetyFolder: URL, at date: Date, previousThemeID: String?
+  ) {
+    restores += 1
+  }
+}
+
+actor ViewRecoveryFilesStub: RecoveryFiles {
+  enum FailurePoint { case prepare, copies, upload, preview }
+  let safetyFolder = FileManager.default.temporaryDirectory
+  private(set) var preparedForces: [Bool] = []
+  private(set) var inspected: URL?
+  var failurePoint: FailurePoint?
+  var snapshot = RecoverySnapshot(
+    createdAt: Date(timeIntervalSince1970: 100), moments: [], facts: [], conversations: [],
+    colourThemeID: nil)
+
+  func setFailurePoint(_ value: FailurePoint?) { failurePoint = value }
+  func prepare(_ snapshot: RecoverySnapshot, force: Bool) throws -> RecoverySnapshot? {
+    if failurePoint == .prepare { throw TestFailure.unavailable }
+    preparedForces.append(force)
+    return snapshot
+  }
+  func localCopies() throws -> [RecoveryCopy] {
+    if failurePoint == .copies { throw TestFailure.unavailable }
+    return []
+  }
+  func upload() throws -> Bool? {
+    if failurePoint == .upload { throw TestFailure.unavailable }
+    return true
+  }
+  func preview(_ url: URL) throws -> RecoverySnapshot {
+    if failurePoint == .preview { throw TestFailure.unavailable }
+    inspected = url
+    return snapshot
+  }
 }
 
 actor CloudAccountStub: CloudAccountChecking {
   var state: CloudAccountState = .available
+  private(set) var calls = 0
   func setState(_ state: CloudAccountState) { self.state = state }
-  func check() -> CloudAccountState { state }
+  func check() -> CloudAccountState {
+    calls += 1
+    return state
+  }
 }

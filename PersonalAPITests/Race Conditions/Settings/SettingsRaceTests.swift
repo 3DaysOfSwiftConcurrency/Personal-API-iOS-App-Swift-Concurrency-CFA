@@ -26,9 +26,9 @@ extension SettingsRaceTests {
     defer { Task { await barrier.release() } }
     let repository = PausedRepository(.export, barrier: barrier)
     let graph = TestAppModelFactory()
-    let manager = SettingsManager(
+    let manager = SettingsFeature(
       preferences: graph.preferences, repository: repository,
-      moments: graph.app.momentsFeature, profile: graph.app.profileFeature)
+      momentsFeature: graph.app.momentsFeature, profileFeature: graph.app.profileFeature)
     let first = Task { try await manager.exportDataset() }
     await fulfillment(of: [entered], timeout: 2)
     try await repository.saveMoment(raceMoment("New entry"))

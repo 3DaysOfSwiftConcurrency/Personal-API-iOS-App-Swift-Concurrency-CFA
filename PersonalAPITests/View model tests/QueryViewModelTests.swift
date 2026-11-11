@@ -5,9 +5,9 @@ import XCTest
 
 @MainActor final class QueryViewModelTests: XCTestCase {
   func testMessagesRemainAndComposerClearsAfterSend() async throws {
-    let manager = ConversationsManager(
-      repository: MemoryConversationRepository(), query: ConversationQueryStub(), now: { Date() })
-    let vm = QueryViewModel(chats: manager)
+    let manager = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
+    let vm = QueryViewModel(conversationsFeature: manager)
     await vm.load()
     vm.question = "Who was Alex?"
     await vm.sendDraft()
@@ -19,13 +19,13 @@ import XCTest
   }
   func testFreshLaunchStartsNewChatAndKeepsHistoryAvailable() async throws {
     let store = MemoryConversationRepository()
-    let previous = ConversationsManager(
-      repository: store, query: ConversationQueryStub(), now: { Date() })
+    let previous = ConversationsFeature(
+      repository: store, queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     let savedID = UUID()
     try await previous.send("Previous conversation", in: savedID)
-    let relaunched = ConversationsManager(
-      repository: store, query: ConversationQueryStub(), now: { Date() })
-    let vm = QueryViewModel(chats: relaunched)
+    let relaunched = ConversationsFeature(
+      repository: store, queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
+    let vm = QueryViewModel(conversationsFeature: relaunched)
     await vm.load()
     XCTAssertNotEqual(vm.conversationID, savedID)
     XCTAssertTrue(vm.turns.isEmpty)
@@ -39,8 +39,8 @@ import XCTest
   func testFailedSaveKeepsDraft() async {
     let store = MemoryConversationRepository()
     let vm = QueryViewModel(
-      chats: ConversationsManager(
-        repository: store, query: ConversationQueryStub(), now: { Date() }))
+      conversationsFeature: ConversationsFeature(
+        repository: store, queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() }))
     await vm.load()
     await store.setFailure(true)
     vm.question = "Keep this question"
@@ -51,8 +51,8 @@ import XCTest
   }
   func testNewChatAndReopenPreserveHistory() async {
     let vm = QueryViewModel(
-      chats: ConversationsManager(
-        repository: MemoryConversationRepository(), query: ConversationQueryStub(), now: { Date() })
+      conversationsFeature: ConversationsFeature(
+        repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     )
     vm.question = "First chat"
     await vm.sendDraft()
@@ -64,8 +64,8 @@ import XCTest
   }
   func testFailureAndMissingEvidenceDisplayDistinctly() {
     let vm = QueryViewModel(
-      chats: ConversationsManager(
-        repository: MemoryConversationRepository(), query: ConversationQueryStub(), now: { Date() })
+      conversationsFeature: ConversationsFeature(
+        repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     )
     let failed = ChatTurn(
       id: UUID(), question: "Who?", createdAt: Date(), failure: "Model unavailable")
@@ -80,9 +80,9 @@ import XCTest
 
 extension QueryViewModelTests {
   func testSubmitIntentHandsOffDraftAndRetryKeepsSingleTurn() async throws {
-    let chats = ConversationsManager(
-      repository: MemoryConversationRepository(), query: ConversationQueryStub(), now: { Date() })
-    let vm = QueryViewModel(chats: chats)
+    let chats = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
+    let vm = QueryViewModel(conversationsFeature: chats)
     await vm.load()
     vm.question = "Question"
     vm.isQuestionFocused = true
@@ -114,11 +114,11 @@ extension QueryViewModelTests {
     XCTAssertNil(vm.error)
   }
   func testHistorySelectionFeedbackAndExportIntents() async throws {
-    let chats = ConversationsManager(
-      repository: MemoryConversationRepository(), query: ConversationQueryStub(), now: { Date() })
+    let chats = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     let id = UUID()
     try await chats.send("Question", in: id)
-    let vm = QueryViewModel(chats: chats)
+    let vm = QueryViewModel(conversationsFeature: chats)
     vm.historySelection = id
     vm.openSelectedHistory()
     XCTAssertEqual(vm.conversationID, id)
@@ -155,9 +155,9 @@ extension QueryViewModelTests {
   func testCancelledSubmitKeepsQuestionAndRejectsLateAnswer() async throws {
     let query = ConversationQueryStub()
     query.deferred = true
-    let chats = ConversationsManager(
-      repository: MemoryConversationRepository(), query: query, now: { Date() })
-    let vm = QueryViewModel(chats: chats)
+    let chats = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: query), now: { Date() })
+    let vm = QueryViewModel(conversationsFeature: chats)
     await vm.load()
     vm.question = "Question"
     vm.submitQuestion()

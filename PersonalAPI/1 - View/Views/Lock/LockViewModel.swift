@@ -1,12 +1,22 @@
 import Observation
 
 @MainActor @Observable final class LockViewModel {
-  private let authentication: any AuthenticationFeature
-  init(authentication: any AuthenticationFeature = AppModel.shared.authenticationFeature) {
-    self.authentication = authentication
+  private let authenticationFeature: AuthenticationFeature
+  init(authenticationFeature: AuthenticationFeature = AppModel.shared.authenticationFeature) {
+    self.authenticationFeature = authenticationFeature
   }
-  var error: String? { authentication.error }
-  var authenticating: Bool { authentication.authenticating }
-  func unlock() async { await authentication.unlock() }
-  func requestUnlock() { Task { await unlock() } }
+  var error: String? { authenticationFeature.error }
+  var authenticating: Bool { authenticationFeature.authenticating }
+  private var unlockTask: Task<Void, Never>?
+  func unlock() async { await authenticationFeature.unlock() }
+  @discardableResult
+  func requestUnlock() -> Task<Void, Never> {
+    if let unlockTask { return unlockTask }
+    let task = Task { [self] in
+      defer { unlockTask = nil }
+      await unlock()
+    }
+    unlockTask = task
+    return task
+  }
 }

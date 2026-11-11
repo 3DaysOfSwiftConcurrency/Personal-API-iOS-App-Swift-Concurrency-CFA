@@ -2,9 +2,9 @@ import XCTest
 
 @testable import PersonalAPI
 
-@MainActor final class ProfileManagerTests: XCTestCase {
+@MainActor final class ProfileFeatureTests: XCTestCase {
   func testValidationRejectsEmptyLabelAndValue() async {
-    let manager = ProfileManager(repository: MemoryRepository(), now: { Date() })
+    let manager = ProfileFeature(repository: MemoryRepository(), now: { Date() })
     XCTAssertFalse(manager.canSave(label: " ", value: "Value"))
     XCTAssertFalse(manager.canSave(label: "Label", value: "\n"))
     do {
@@ -16,7 +16,7 @@ import XCTest
   func testSavePreservesTextAndTimestamp() async throws {
     let store = MemoryRepository()
     let date = Date(timeIntervalSince1970: 10)
-    let manager = ProfileManager(repository: store, now: { date })
+    let manager = ProfileFeature(repository: store, now: { date })
     try await manager.addFact(label: " Job ", value: " Teacher ")
     let stored = try await store.loadFacts()
     XCTAssertEqual(stored, manager.facts)
@@ -25,7 +25,7 @@ import XCTest
   }
   func testFailedWriteDoesNotPublish() async {
     let store = MemoryRepository()
-    let manager = ProfileManager(repository: store, now: { Date() })
+    let manager = ProfileFeature(repository: store, now: { Date() })
     await store.setFailure(true)
     do {
       try await manager.addFact(label: "Job", value: "Teacher")
@@ -35,7 +35,7 @@ import XCTest
   }
   func testLoadFailureRetriesAndSuccessfulLoadIsCached() async {
     let store = MemoryRepository()
-    let manager = ProfileManager(repository: store, now: { Date() })
+    let manager = ProfileFeature(repository: store, now: { Date() })
     await store.setFailure(true)
     await manager.loadIfRequired()
     XCTAssertNotNil(manager.loadError)

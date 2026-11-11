@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LifeMapView: View {
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   @State private var viewModel = LifeMapViewModel()
   @State private var selected: LifeMapPoint?
   var body: some View {

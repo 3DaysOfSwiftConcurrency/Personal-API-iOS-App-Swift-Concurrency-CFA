@@ -5,7 +5,7 @@ struct AnswerFeedbackView: View {
   let turnID: UUID
   @State private var viewModel = AnswerFeedbackViewModel()
   @Environment(\.dismiss) private var dismiss
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   var body: some View {
     @Bindable var viewModel = viewModel
     NavigationStack {

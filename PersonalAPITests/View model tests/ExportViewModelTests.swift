@@ -6,7 +6,7 @@ import XCTest
   func testPreparedFileContainsDatasetAndCount() async throws {
     let graph = TestAppModelFactory()
     try await graph.app.momentsFeature.recordMoment(text: "Entry", happenedAt: nil)
-    let vm = ExportViewModel(settings: graph.app.settingsFeature)
+    let vm = ExportViewModel(exportFeature: graph.app.exportFeature)
     let prepared = await vm.prepareExport()
     XCTAssertTrue(prepared)
     XCTAssertNotNil(vm.document)
@@ -17,7 +17,7 @@ import XCTest
   }
   func testFailedPreparationClearsPreviousDocumentAndCanRetry() async {
     let graph = TestAppModelFactory()
-    let vm = ExportViewModel(settings: graph.app.settingsFeature)
+    let vm = ExportViewModel(exportFeature: graph.app.exportFeature)
     _ = await vm.prepareExport()
     await graph.repository.setFailure(true)
     let failed = await vm.prepareExport()
@@ -32,7 +32,7 @@ import XCTest
   }
   func testExportCompletionReleasesDocumentForSuccessAndFailure() async {
     let graph = TestAppModelFactory()
-    let vm = ExportViewModel(settings: graph.app.settingsFeature)
+    let vm = ExportViewModel(exportFeature: graph.app.exportFeature)
     _ = await vm.prepareExport()
     vm.exportFinished(.success(URL(fileURLWithPath: "/tmp/test.json")))
     XCTAssertNil(vm.document)
@@ -52,10 +52,8 @@ extension ExportViewModelTests {
     defer { Task { await barrier.release() } }
     let store = PausedRepository(.export, barrier: barrier)
     let graph = TestAppModelFactory()
-    let settings = SettingsManager(
-      preferences: graph.preferences, repository: store, moments: graph.app.momentsFeature,
-      profile: graph.app.profileFeature)
-    let vm = ExportViewModel(settings: settings)
+    let exportFeature = ExportFeature(repository: store, momentsFeature: graph.app.momentsFeature)
+    let vm = ExportViewModel(exportFeature: exportFeature)
     let first = Task { await vm.prepareExport() }
     await fulfillment(of: [entered], timeout: 2)
     XCTAssertTrue(vm.isExporting)

@@ -3,7 +3,7 @@ import UIKit
 import UniformTypeIdentifiers
 
 struct QueryView: View {
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   @State private var viewModel = QueryViewModel()
   var body: some View {
     @Bindable var viewModel = viewModel
@@ -37,7 +37,7 @@ struct QueryView: View {
                     accentColor: UIColor(theme.palette.interactiveAccent),
                     placeholderText: "Ask about your life…",
                     accessibilityName: "Chat question",
-                    onSend: viewModel.submitQuestion
+                    onSend: { viewModel.submitQuestion() }
                   )
                   .frame(height: 174)
                   if let turn {
@@ -48,7 +48,7 @@ struct QueryView: View {
                         turn: turn, answer: viewModel.answer(for: turn),
                         failureDetails: viewModel.failureDetails(for: turn),
                         isLatest: turn.id == viewModel.turns.last?.id, isBusy: viewModel.isBusy,
-                        retry: viewModel.answerAgain,
+                        retry: { viewModel.answerAgain() },
                         logMoment: viewModel.showMomentEntry,
                         markUseful: { viewModel.markUseful(turn.id) },
                         showFeedback: { viewModel.showFeedback(turn) })

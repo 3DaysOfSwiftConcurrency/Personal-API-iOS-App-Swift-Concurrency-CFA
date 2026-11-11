@@ -2,7 +2,7 @@ import XCTest
 
 @testable import PersonalAPI
 
-@MainActor final class ConversationQueryStub: QueryFeature {
+@MainActor final class ConversationQueryStub: QuerySearching {
   var contexts: [[String]] = []
   var answer = "Your recorded answer."
   var deferred = false
@@ -21,11 +21,11 @@ import XCTest
       method: .onDeviceAI)
   }
 }
-@MainActor final class ConversationsManagerTests: XCTestCase {
+@MainActor final class ConversationsFeatureTests: XCTestCase {
   func testFollowUpUsesQuestionsNeverGeneratedAnswersAndNewChatIsIsolated() async throws {
     let query = ConversationQueryStub()
-    let manager = ConversationsManager(
-      repository: MemoryConversationRepository(), query: query, now: { Date() })
+    let manager = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: query), now: { Date() })
     let id = UUID()
     try await manager.send("Who was Alex?", in: id)
     try await manager.send("Where did I meet him?", in: id)
@@ -36,8 +36,8 @@ import XCTest
   }
   func testRetryReplacesLatestAnswerAndRetrievesAgainWithoutDuplicatingQuestion() async throws {
     let query = ConversationQueryStub()
-    let manager = ConversationsManager(
-      repository: MemoryConversationRepository(), query: query, now: { Date() })
+    let manager = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: query), now: { Date() })
     let id = UUID()
     try await manager.send("Did I enjoy school?", in: id)
     query.answer = "You remember enjoying it."
@@ -51,7 +51,7 @@ import XCTest
     let query = ConversationQueryStub()
     query.deferred = true
     let store = MemoryConversationRepository()
-    let manager = ConversationsManager(repository: store, query: query, now: { Date() })
+    let manager = ConversationsFeature(repository: store, queryFeature: QueryFeature(searcher: query), now: { Date() })
     let operation = Task { try await manager.send("Who?", in: UUID()) }
     while query.pending == nil { await Task.yield() }
     operation.cancel()
@@ -67,7 +67,7 @@ import XCTest
   func testSaveFailureDoesNotPublishOrCallAI() async throws {
     let store = MemoryConversationRepository()
     let query = ConversationQueryStub()
-    let manager = ConversationsManager(repository: store, query: query, now: { Date() })
+    let manager = ConversationsFeature(repository: store, queryFeature: QueryFeature(searcher: query), now: { Date() })
     try await manager.load()
     await store.setFailure(true)
     do {
@@ -80,13 +80,13 @@ import XCTest
   func testFeedbackSurvivesReloadAndDeletionDoesNotTouchJournal() async throws {
     let store = MemoryConversationRepository()
     let query = ConversationQueryStub()
-    let manager = ConversationsManager(repository: store, query: query, now: { Date() })
+    let manager = ConversationsFeature(repository: store, queryFeature: QueryFeature(searcher: query), now: { Date() })
     let id = UUID()
     try await manager.send("Who?", in: id)
     let turn = try XCTUnwrap(manager.conversations.first?.turns.first)
     try await manager.recordFeedback(
       .inventedDetail, explanation: "Never recorded that.", turnID: turn.id, conversationID: id)
-    let reloaded = ConversationsManager(repository: store, query: query, now: { Date() })
+    let reloaded = ConversationsFeature(repository: store, queryFeature: QueryFeature(searcher: query), now: { Date() })
     try await reloaded.load()
     XCTAssertEqual(
       reloaded.conversations.first?.turns.first?.feedback?.explanation, "Never recorded that.")
@@ -99,12 +99,12 @@ import XCTest
     defer { try? FileManager.default.removeItem(at: folder) }
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     let url = folder.appendingPathComponent("chats.store")
-    let store = LocalDataStore(storeURL: url)
-    let manager = ConversationsManager(
-      repository: store, query: ConversationQueryStub(), now: { Date() })
+    let store = SwiftDataManager(storeURL: url)
+    let manager = ConversationsFeature(
+      repository: store, queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     let id = UUID()
     try await manager.send("My question", in: id)
-    let loaded = try await LocalDataStore(storeURL: url).load()
+    let loaded = try await SwiftDataManager(storeURL: url).load()
     XCTAssertEqual(loaded.first?.id, id)
     XCTAssertEqual(
       loaded.first?.turns.first?.result?.generatedAnswer?.text, "Your recorded answer.")
@@ -114,11 +114,11 @@ import XCTest
   }
 }
 
-extension ConversationsManagerTests {
+extension ConversationsFeatureTests {
   func testFailedLoadRetriesAndExportPreservesTurns() async throws {
     let store = MemoryConversationRepository()
-    let manager = ConversationsManager(
-      repository: store, query: ConversationQueryStub(), now: { Date() })
+    let manager = ConversationsFeature(
+      repository: store, queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     await store.setFailure(true)
     do {
       try await manager.load()
@@ -133,8 +133,8 @@ extension ConversationsManagerTests {
     XCTAssertEqual(archive.first?.turns.first?.question, "Question")
   }
   func testMissingRetryAndFeedbackAreRejectedAndBusyClears() async throws {
-    let manager = ConversationsManager(
-      repository: MemoryConversationRepository(), query: ConversationQueryStub(), now: { Date() })
+    let manager = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     do {
       try await manager.answerAgain(in: UUID())
       XCTFail("Expected missing")
@@ -150,8 +150,8 @@ extension ConversationsManagerTests {
   }
   func testFeedbackIsBoundedAndFailedDeleteKeepsConversation() async throws {
     let store = MemoryConversationRepository()
-    let manager = ConversationsManager(
-      repository: store, query: ConversationQueryStub(), now: { Date() })
+    let manager = ConversationsFeature(
+      repository: store, queryFeature: QueryFeature(searcher: ConversationQueryStub()), now: { Date() })
     let id = UUID()
     try await manager.send("Question", in: id)
     let turn = try XCTUnwrap(manager.conversations.first?.turns.first)
@@ -169,14 +169,16 @@ extension ConversationsManagerTests {
   }
 }
 
-@MainActor private final class FailingConversationQuery: QueryFeature {
+@MainActor private final class FailingConversationQuery: QuerySearching {
   func canSearch(_ question: String) -> Bool { !question.isEmpty }
-  func search(_ question: String) async throws -> QueryResult { throw TestFailure.unavailable }
+  func search(_ question: String, previousQuestions: [String]) async throws -> QueryResult {
+    throw TestFailure.unavailable
+  }
 }
-extension ConversationsManagerTests {
+extension ConversationsFeatureTests {
   func testGenerationFailureIsSavedWithQuestionAndExported() async throws {
-    let manager = ConversationsManager(
-      repository: MemoryConversationRepository(), query: FailingConversationQuery(), now: { Date() }
+    let manager = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: QueryFeature(searcher: FailingConversationQuery()), now: { Date() }
     )
     XCTAssertFalse(manager.canSend(""))
     XCTAssertFalse(manager.canSend(String(repeating: "x", count: 501)))

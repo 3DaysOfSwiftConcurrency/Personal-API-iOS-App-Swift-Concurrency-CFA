@@ -75,7 +75,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     return nil
   }
 }
-@MainActor final class QueryManagerTests: XCTestCase {
+@MainActor final class QueryFeatureTests: XCTestCase {
   func testLegacyFactsArePreservedButExcludedFromJournalSearch() async throws {
     let repository = MemoryRepository()
     let search = ContextSearchCapture()
@@ -83,7 +83,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     let fact = PersonalFactSnapshot(
       id: UUID(), label: "Occupation", value: "iOS developer", createdAt: Date())
     try await repository.saveFact(fact)
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: search, answerer: capture)
     let result = try await manager.search("What is my job?")
@@ -100,13 +100,13 @@ private actor AnswerPayloadCapture: MomentAnswering {
   func testChatContextIsBoundedAndRetryReadsNewJournalEvidence() async throws {
     let repository = MemoryRepository()
     let search = ContextSearchCapture()
-    let query = QueryManager(
+    let query = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: search, answerer: SourceAnswer())
     let original = moment("I attended school.")
     try await repository.saveMoment(original)
-    let chats = ConversationsManager(
-      repository: MemoryConversationRepository(), query: query, now: { Date() })
+    let chats = ConversationsFeature(
+      repository: MemoryConversationRepository(), queryFeature: query, now: { Date() })
     let id = UUID()
     try await chats.send("Did I enjoy school?", in: id)
     try await repository.saveMoment(moment("I enjoyed the art lessons."))
@@ -133,7 +133,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     let repository = MemoryRepository()
     try await repository.saveMoment(source)
     let search = PassageStub(passages: [SearchPassage(momentID: source.id, text: relevant)])
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: search, answerer: ContextAnswer())
     let result = try await manager.search("Did I enjoy school?")
@@ -147,7 +147,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     try await repository.saveMoment(source)
     let search = PassageStub(passages: [SearchPassage(momentID: source.id, text: "I loved school.")]
     )
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: search, answerer: ContextAnswer())
     let result = try await manager.search("school")
@@ -176,7 +176,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
   func testSearchFailureDoesNotDisableNextQuestion() async throws {
     let repository = MemoryRepository()
     try await repository.saveMoment(moment("I attended school."))
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: RecoveringSearch(), answerer: ContextAnswer())
     let failed = try await manager.search("school")
@@ -189,7 +189,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     let source = moment("I attended school.")
     let repository = MemoryRepository()
     try await repository.saveMoment(source)
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: SearchStub(ids: [source.id]), answerer: RecoveringAnswer())
     let failed = try await manager.search("school")
@@ -205,7 +205,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     try await repository.saveMoment(school)
     try await repository.saveMoment(job)
     let capture = ContextSearchCapture()
-    let query = QueryManager(
+    let query = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: capture, answerer: ContextAnswer())
     let result = try await query.search(
@@ -236,7 +236,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     let repository = MemoryRepository()
     try await repository.saveMoment(moment("I attended primary school."))
     let capture = ContextSearchCapture()
-    let query = QueryManager(
+    let query = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: capture)
     let result = try await query.search("What is my job?")
@@ -274,7 +274,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
       try await repository.saveMoment(source)
       try await repository.saveMoment(moment("I went to primary school as a child."))
       let capture = AnswerPayloadCapture()
-      let query = QueryManager(
+      let query = QueryFeature(
         repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
         semanticSearch: ContextSearchCapture(), answerer: capture)
       _ = try await query.search(question)
@@ -312,7 +312,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     try await repository.saveMoment(
       moment(
         "My job is an iOS developer. I love making iOS apps. I am proud to be an iOS developer."))
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: OnDeviceMomentSearch(), answerer: OnDeviceMomentAnswerer())
     for question in ["What is my job?", "Do I like my job?", "Do I make apps?"] {
@@ -490,7 +490,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     let repository = MemoryRepository()
     try await repository.saveMoment(source)
     let answer = GroundedAnswer(text: "Alex is your school friend.", citations: [])
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: SearchStub(ids: [source.id]), answerer: AnswerStub(result: answer))
     let result = try await manager.search("Who is Alex?")
@@ -504,7 +504,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     let answer = GroundedAnswer(
       text: "Alex is your school friend.",
       citations: [AnswerCitation(momentID: source.id, quote: source.text)])
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: SearchStub(ids: [source.id]), answerer: AnswerStub(result: answer))
     let result = try await manager.search("Who is Alex?")
@@ -519,7 +519,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     let answer = GroundedAnswer(
       text: "Alex is your brother.",
       citations: [AnswerCitation(momentID: source.id, quote: "Alex is my brother")])
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: SearchStub(ids: [source.id]), answerer: AnswerStub(result: answer))
     let result = try await manager.search("Who is Alex?")
@@ -532,7 +532,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     let source = moment("I saw Alex.")
     let repository = MemoryRepository()
     try await repository.saveMoment(source)
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: SearchStub(ids: [source.id]), answerer: AnswerStub(result: nil))
     let result = try await manager.search("Where does Alex live?")
@@ -556,7 +556,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     let repository = MemoryRepository()
     let original = moment("I went jogging before sunrise.")
     try await repository.saveMoment(original)
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: SearchStub(ids: [original.id, original.id]))
     let result = try await manager.search("exercise")
@@ -569,7 +569,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
     let repository = MemoryRepository()
     let source = moment("garden idea")
     try await repository.saveMoment(source)
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: SearchStub(ids: [], failure: .unavailable("Model not ready")))
     let result = try await manager.search("garden")
@@ -580,7 +580,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
   func testInventedSourceIDCannotBecomeEvidence() async throws {
     let repository = MemoryRepository()
     try await repository.saveMoment(moment("jogging"))
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: SearchStub(ids: [UUID()]))
     let result = try await manager.search("exercise")
@@ -592,7 +592,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
   func testCancellationDoesNotStartFallback() async throws {
     let repository = MemoryRepository()
     try await repository.saveMoment(moment("A garden memory"))
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: SearchStub(ids: [], cancel: true))
     do {
@@ -610,7 +610,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
   func testAIAbstentionStaysEmptyEvenWithKeywordOverlap() async throws {
     let repository = MemoryRepository()
     try await repository.saveMoment(moment("garden"))
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: SearchStub(ids: []))
     let result = try await manager.search("garden")
@@ -620,7 +620,7 @@ private actor AnswerPayloadCapture: MomentAnswering {
   }
 }
 
-extension QueryManagerTests {
+extension QueryFeatureTests {
   func testDerivedLabelsFindOriginalPassageAndRejectStaleOrOrphanedFacts() async throws {
     let source = moment("I drive a Volvo, but only on weekends.")
     let facts = try await LocalJournalFactExtractor(now: { Date() }).extract(from: source)
@@ -647,7 +647,7 @@ extension QueryManagerTests {
     let facts = try await LocalJournalFactExtractor(now: { Date() }).extract(from: source)
     try await repository.replaceDerivedFacts(facts, source: source)
     let capture = AnswerPayloadCapture()
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: repository, retriever: MomentRetriever(), index: LocalQueryIndex(),
       semanticSearch: ContextSearchCapture(), answerer: capture)
     let result = try await manager.search("What possessions?")
@@ -659,9 +659,9 @@ extension QueryManagerTests {
   }
 }
 
-extension QueryManagerTests {
+extension QueryFeatureTests {
   func testQuestionValidationEnforcesNonemptyAndLengthBoundary() async throws {
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: MemoryRepository(), retriever: MomentRetriever(), index: LocalQueryIndex())
     XCTAssertFalse(manager.canSearch(" \n"))
     XCTAssertTrue(manager.canSearch(String(repeating: "a", count: 500)))
@@ -677,7 +677,7 @@ extension QueryManagerTests {
   }
   func testRepositoryFailurePropagatesAndNextSearchCanRecover() async throws {
     let store = MemoryRepository()
-    let manager = QueryManager(
+    let manager = QueryFeature(
       repository: store, retriever: MomentRetriever(), index: LocalQueryIndex())
     await store.setFailure(true)
     do {

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct OnboardingView: View {
   @State private var viewModel = OnboardingViewModel()
-  @Environment(ThemeManager.self) private var theme
+  @Environment(ThemeStore.self) private var theme
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 28) {

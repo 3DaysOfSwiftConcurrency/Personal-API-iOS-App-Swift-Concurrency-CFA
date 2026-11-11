@@ -11,8 +11,12 @@ import Observation
   private(set) var error: String?
   private(set) var didSave = false
   private(set) var isSaving = false
-  private let momentsFeature: any MomentsFeature
-  init(moments: any MomentsFeature = AppModel.shared.momentsFeature) { momentsFeature = moments }
+  private var saveTask: Task<Void, Never>?
+  private var retryTask: Task<Void, Never>?
+  private let momentsFeature: MomentsFeature
+  init(momentsFeature: MomentsFeature = AppModel.shared.momentsFeature) {
+    self.momentsFeature = momentsFeature
+  }
   var moments: [MomentSnapshot] { momentsFeature.moments }
   var canSave: Bool { !isSaving && momentsFeature.canRecord(text) }
   var loadError: String? { momentsFeature.loadError }
@@ -32,6 +36,24 @@ import Observation
       didSave = true
     } catch { self.error = "Your draft is still here. \(error.localizedDescription)" }
   }
-  func requestSave() { Task { await save() } }
-  func requestRetry() { Task { await retry() } }
+  @discardableResult
+  func requestSave() -> Task<Void, Never> {
+    if let saveTask { return saveTask }
+    let task = Task { [self] in
+      defer { saveTask = nil }
+      await save()
+    }
+    saveTask = task
+    return task
+  }
+  @discardableResult
+  func requestRetry() -> Task<Void, Never> {
+    if let retryTask { return retryTask }
+    let task = Task { [self] in
+      defer { retryTask = nil }
+      await retry()
+    }
+    retryTask = task
+    return task
+  }
 }

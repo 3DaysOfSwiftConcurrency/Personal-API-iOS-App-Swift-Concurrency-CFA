@@ -37,6 +37,7 @@ struct JournalTextEditor: UIViewRepresentable {
     // Only Done requests a resignation. Native touches own acquisition of focus.
     // Never change the responder synchronously inside a SwiftUI update.
     if !isEditing && view.isFirstResponder {
+      // Intentionally one-turn and unretained: weak UIKit references make late execution a no-op.
       Task { @MainActor [weak view, weak coordinator] in
         guard let view, let coordinator, !coordinator.parent.isEditing else { return }
         view.resignFirstResponder()

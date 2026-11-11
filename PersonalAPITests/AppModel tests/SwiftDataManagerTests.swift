@@ -2,7 +2,39 @@ import XCTest
 
 @testable import PersonalAPI
 
-final class LocalDataStoreTests: XCTestCase {
+final class SwiftDataManagerTests: XCTestCase {
+  func testCreatesMissingStoreDirectoryAndCoalescesFirstRequests() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = SwiftDataManager(storeURL: root.appendingPathComponent("Database/data.store"))
+
+    async let moments = store.loadMoments()
+    async let facts = store.loadFacts()
+    let values = try await (moments, facts)
+
+    XCTAssertTrue(values.0.isEmpty)
+    XCTAssertTrue(values.1.isEmpty)
+    XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("Database").path))
+  }
+
+  func testFailedDirectoryPreparationCanRetryWithoutChangingStoreLocation() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let blocker = root.appendingPathComponent("Database")
+    try Data("blocker".utf8).write(to: blocker)
+    let store = SwiftDataManager(storeURL: blocker.appendingPathComponent("data.store"))
+
+    do {
+      _ = try await store.loadMoments()
+      XCTFail("Expected directory preparation to fail")
+    } catch {}
+
+    try FileManager.default.removeItem(at: blocker)
+    let moments = try await store.loadMoments()
+    XCTAssertTrue(moments.isEmpty)
+  }
+
   func testReopenAndExportPreserveSourceAndTimestamp() async throws {
     let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -11,9 +43,9 @@ final class LocalDataStoreTests: XCTestCase {
     let source = MomentSnapshot(
       id: UUID(), text: "  café 🌱\n", createdAt: Date(timeIntervalSince1970: 123.456),
       happenedAt: nil, source: "manual", analysisData: nil, processingState: "pending")
-    let store = LocalDataStore(storeURL: url)
+    let store = SwiftDataManager(storeURL: url)
     try await store.saveMoment(source)
-    let reopened = LocalDataStore(storeURL: url)
+    let reopened = SwiftDataManager(storeURL: url)
     let records = try await reopened.loadMoments()
     XCTAssertEqual(records.first, source)
     let data = try await reopened.exportArchive()
@@ -32,13 +64,13 @@ final class LocalDataStoreTests: XCTestCase {
   }
 }
 
-extension LocalDataStoreTests {
+extension SwiftDataManagerTests {
   func testDerivedFactsReopenExportAndReplaceWithoutDuplicatesOrLosingLegacyFacts() async throws {
     let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
     let url = folder.appendingPathComponent("facts.store")
-    let store = LocalDataStore(storeURL: url)
+    let store = SwiftDataManager(storeURL: url)
     let source = MomentSnapshot(
       id: UUID(), text: "I enjoyed teaching in 2012, but no longer do.",
       createdAt: Date(), happenedAt: nil, source: "manual", analysisData: nil,
@@ -51,7 +83,7 @@ extension LocalDataStoreTests {
     let facts = try await extractor.extract(from: source)
     try await store.replaceDerivedFacts(facts, source: source)
     try await store.replaceDerivedFacts(extractor.extract(from: source), source: source)
-    let reopened = LocalDataStore(storeURL: url)
+    let reopened = SwiftDataManager(storeURL: url)
     let loaded = try await reopened.loadFacts()
     XCTAssertEqual(loaded.count, 2)
     XCTAssertTrue(loaded.contains(legacy))
@@ -67,7 +99,7 @@ extension LocalDataStoreTests {
   }
 }
 
-extension LocalDataStoreTests {
+extension SwiftDataManagerTests {
   func testLegacyFactJSONDecodesWithoutDerivation() throws {
     let id = UUID()
     let data = try JSONSerialization.data(withJSONObject: [
@@ -84,7 +116,7 @@ extension LocalDataStoreTests {
     let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
-    let store = LocalDataStore(storeURL: folder.appendingPathComponent("facts.store"))
+    let store = SwiftDataManager(storeURL: folder.appendingPathComponent("facts.store"))
     let source = MomentSnapshot(
       id: UUID(), text: "My job is teaching.", createdAt: Date(),
       happenedAt: nil, source: "manual", analysisData: nil, processingState: "pending")
@@ -103,13 +135,13 @@ extension LocalDataStoreTests {
   }
 }
 
-extension LocalDataStoreTests {
+extension SwiftDataManagerTests {
   func testEditAndDeletePersistAndInvalidateOnlyTheirDerivedFacts() async throws {
     let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: folder) }
     let url = folder.appendingPathComponent("journal.store")
-    let store = LocalDataStore(storeURL: url)
+    let store = SwiftDataManager(storeURL: url)
     let source = MomentSnapshot(
       id: UUID(), text: "I love teaching.", createdAt: Date(timeIntervalSince1970: 123),
       happenedAt: nil, source: "manual", analysisData: nil, processingState: "pending")
@@ -126,7 +158,7 @@ extension LocalDataStoreTests {
     XCTAssertEqual(updated.createdAt, source.createdAt)
     XCTAssertNil(updated.analysisData)
     XCTAssertEqual(updated.processingState, "pending")
-    let reopened = LocalDataStore(storeURL: url)
+    let reopened = SwiftDataManager(storeURL: url)
     let records = try await reopened.loadMoments()
     XCTAssertEqual(records, [updated])
     let remainingFacts = try await reopened.loadFacts()
